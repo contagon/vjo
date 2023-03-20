@@ -1,2 +1,1 @@
-# vjo
-Visual Joint Odometry
+# Visual Joint Odometry
