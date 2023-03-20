@@ -27,7 +27,8 @@ TODO LIST
 
 Functionality:
 - Verify attaching camera to end effector is working properly (probably need to have it pointed at something)
-    - See here for potential example: https://deepnote.com/workspace/Manipulation-ac8201a1-470a-4c77-afd0-2cc45bc229ff/project/04-Geometric-Pose-Estimation-cc6340f5-374e-449a-a195-839a3cedec4a/notebook/pose-c5a585e1a5fe4ebc8bc362c2a101857d
+    - See here for potential example: https://deepnote.com/workspace/Manipulation-ac8201a1-470a-4c77-afd0-2cc45bc229ff/project/04-Geometric-Pose-Estimation-cc6340f5-374e-449a-a195-839a3cedec4a/notebook/camera_sim-2dbfca8626be43b3bdb7526716ea3a3a
+    - Or here: https://deepnote.com/workspace/Drake-0b3b2c53-a7ad-441b-80f8-bf8350752305/project/Tutorials-2b4fc509-aef2-417d-a40d-6071dfed9199/notebook/rendering_multibody_plant-b674844b6d3f494a85aa5e7bf11247c2
 - Figure out how to pull joint/camera data at a specified interval
     - Do we want to ROS publish it to run live, or just pull it and save it somewhere?
 - Make camera scene more interesting
