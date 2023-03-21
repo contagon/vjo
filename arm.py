@@ -3,7 +3,12 @@ import time
 
 import numpy as np
 import pydot
-from pydrake.geometry import Meshcat, MeshcatVisualizer, MeshcatVisualizerParams, Role
+from pydrake.geometry import (
+    StartMeshcat,
+    MeshcatVisualizer,
+    MeshcatVisualizerParams,
+    Role,
+)
 from pydrake.geometry.render import (
     ClippingRange,
     ColorRenderCamera,
@@ -45,7 +50,7 @@ class ArmSim:
         self.viz = viz
 
         if self.viz:
-            self.meshcat = Meshcat()
+            self.meshcat = StartMeshcat()
 
         # Builder sets up the diagram
         # Diagram is all of the seperate systems combined
@@ -211,7 +216,7 @@ class ArmSim:
 
 
 if __name__ == "__main__":
-    sim = ArmSim(viz=False)
+    sim = ArmSim(viz=True)
     # Setup everything in environment
     sim.add_arm()
     sim.plant_finalize()
@@ -220,6 +225,6 @@ if __name__ == "__main__":
     # Get sim ready
     q0 = np.zeros(7)
     qd = np.array([0, np.pi / 2, 0, -np.pi / 2, 0, np.pi / 2, 0])
-    sim.sim_setup(wait_load=0)
-    sim.save_diagram("test.svg")
-    # sim.sim_run(q0=q0, qd=qd)
+    sim.sim_setup(wait_load=3)
+    # sim.save_diagram("diagram.svg")
+    sim.sim_run(q0=q0, qd=qd)
