@@ -50,9 +50,7 @@ from pydrake.all import (
 )
 
 
-def AddMultibodyTriad(
-    frame, scene_graph, length=0.25, radius=0.01, opacity=1.0
-):
+def AddMultibodyTriad(frame, scene_graph, length=0.25, radius=0.01, opacity=1.0):
     plant = frame.GetParentPlant()
     AddTriad(
         plant.get_source_id(),
@@ -63,6 +61,7 @@ def AddMultibodyTriad(
         opacity,
         frame.GetFixedPoseInBodyFrame(),
     )
+
 
 def AddTriad(
     source_id,
@@ -89,9 +88,7 @@ def AddTriad(
       name: the added geometry will have names name + " x-axis", etc.
     """
     # x-axis
-    X_TG = RigidTransform(
-        RotationMatrix.MakeYRotation(np.pi / 2), [length / 2.0, 0, 0]
-    )
+    X_TG = RigidTransform(RotationMatrix.MakeYRotation(np.pi / 2), [length / 2.0, 0, 0])
     geom = GeometryInstance(
         X_FT.multiply(X_TG), Cylinder(radius, length), name + " x-axis"
     )
@@ -101,9 +98,7 @@ def AddTriad(
     scene_graph.RegisterGeometry(source_id, frame_id, geom)
 
     # y-axis
-    X_TG = RigidTransform(
-        RotationMatrix.MakeXRotation(np.pi / 2), [0, length / 2.0, 0]
-    )
+    X_TG = RigidTransform(RotationMatrix.MakeXRotation(np.pi / 2), [0, length / 2.0, 0])
     geom = GeometryInstance(
         X_FT.multiply(X_TG), Cylinder(radius, length), name + " y-axis"
     )

@@ -4,10 +4,10 @@ import time
 import numpy as np
 import pydot
 from pydrake.geometry import (
-    StartMeshcat,
     MeshcatVisualizer,
     MeshcatVisualizerParams,
     Role,
+    StartMeshcat,
 )
 from pydrake.geometry.render import (
     ClippingRange,
@@ -89,7 +89,7 @@ class ArmSim:
 
     def add_frame(self, frame, length=0.25, radius=0.01):
         """Helper to visualize frames in the simulation
-        
+
         If integer, defaults to that frame on the arm. If string
         gets the frame with that name.
         """
@@ -100,13 +100,11 @@ class ArmSim:
 
         AddMultibodyTriad(frame, self.scene_graph, length=length, radius=radius)
 
-    def add_mesh(self, model : str, frame_name : str, offset : RigidTransform):
+    def add_mesh(self, model: str, frame_name: str, offset: RigidTransform):
         sim.parser.AddModels(model)
         self.plant.WeldFrames(
-                    self.plant.world_frame(),
-                    self.plant.GetFrameByName(frame_name),
-                    offset
-                )
+            self.plant.world_frame(), self.plant.GetFrameByName(frame_name), offset
+        )
 
     def add_camera(self):
         """Add camera attached to end effector"""
@@ -134,7 +132,7 @@ class ArmSim:
         # Make camera
         self.camera = RgbdSensor(
             self.plant.GetBodyFrameIdOrThrow(L7.body().index()),
-            RigidTransform(RollPitchYaw([0,0,np.pi/2]), [0, 0, 0.1]),
+            RigidTransform(RollPitchYaw([0, 0, np.pi / 2]), [0, 0, 0.1]),
             color_camera=color_camera,
             depth_camera=depth_camera,
         )
@@ -245,7 +243,11 @@ if __name__ == "__main__":
     # Setup everything in environment
     sim.add_arm()
     # Add mustard bottle in
-    sim.add_mesh("meshes/cylinder.sdf", "cylinder_link", RigidTransform(RollPitchYaw([0.1,0,0]), [1,0,0.75]))
+    sim.add_mesh(
+        "meshes/cylinder.sdf",
+        "cylinder_link",
+        RigidTransform(RollPitchYaw([0.1, 0, 0]), [1, 0, 0.75]),
+    )
     # Visualizer end effector pose
     sim.add_frame(7)
     sim.plant_finalize()
