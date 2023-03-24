@@ -19,7 +19,7 @@ from pydrake.geometry.render import (
     RenderEngineVtkParams,
     RenderLabel,
 )
-from pydrake.math import RigidTransform
+from pydrake.math import RigidTransform, RollPitchYaw
 from pydrake.multibody.parsing import Parser
 from pydrake.multibody.plant import AddMultibodyPlantSceneGraph
 from pydrake.systems.analysis import Simulator
@@ -27,13 +27,12 @@ from pydrake.systems.controllers import InverseDynamicsController
 from pydrake.systems.framework import DiagramBuilder
 from pydrake.systems.sensors import CameraInfo, RgbdSensor
 
+from utils import AddMultibodyTriad
+
 """
 TODO LIST
 
 Functionality:
-- Verify attaching camera to end effector is working properly (probably need to have it pointed at something)
-    - See here for potential example: https://deepnote.com/workspace/Manipulation-ac8201a1-470a-4c77-afd0-2cc45bc229ff/project/04-Geometric-Pose-Estimation-cc6340f5-374e-449a-a195-839a3cedec4a/notebook/camera_sim-2dbfca8626be43b3bdb7526716ea3a3a
-    - Or here: https://deepnote.com/workspace/Drake-0b3b2c53-a7ad-441b-80f8-bf8350752305/project/Tutorials-2b4fc509-aef2-417d-a40d-6071dfed9199/notebook/rendering_multibody_plant-b674844b6d3f494a85aa5e7bf11247c2
 - Figure out how to pull joint/camera data at a specified interval
     - Do we want to ROS publish it to run live, or just pull it and save it somewhere?
 - Make camera scene more interesting
@@ -63,6 +62,8 @@ class ArmSim:
         # Parser reads .sdf and .urdf files and puts them into the plant
         self.parser = Parser(self.plant)
 
+        self.camera = None
+
     def add_arm(self, arm="iiwa7"):
         """Add robot arm to plant"""
         if arm == "iiwa7":
@@ -82,12 +83,33 @@ class ArmSim:
         self.plant.WeldFrames(self.plant.world_frame(), L0)
 
     def plant_finalize(self):
-        """Finalize the plant - means we're not adding anythign else to ti"""
+        """Finalize the plant - means we're not adding anything else to ti"""
         # Finalize the plant after loading all of the robot arm.
         self.plant.Finalize()
 
+    def add_frame(self, frame, length=0.25, radius=0.01):
+        """Helper to visualize frames in the simulation
+        
+        If integer, defaults to that frame on the arm. If string
+        gets the frame with that name.
+        """
+        if type(frame) is int:
+            frame = self.plant.GetFrameByName(self.link_names(frame))
+        elif type(frame) is str:
+            frame = self.plant.GetFrameByName(frame)
+
+        AddMultibodyTriad(frame, self.scene_graph, length=length, radius=radius)
+
+    def add_mesh(self, model : str, frame_name : str, offset : RigidTransform):
+        sim.parser.AddModels(model)
+        self.plant.WeldFrames(
+                    self.plant.world_frame(),
+                    self.plant.GetFrameByName(frame_name),
+                    offset
+                )
+
     def add_camera(self):
-        # TODO: Make sure this is looking at the right things
+        """Add camera attached to end effector"""
         # Make renderer for cameras
         renderer_name = "renderer"
         self.scene_graph.AddRenderer(
@@ -108,21 +130,24 @@ class ArmSim:
         )
         color_camera = ColorRenderCamera(core, show_window=True)
         depth_camera = DepthRenderCamera(core, DepthRange(0.01, 10.0))
-        world_id = self.plant.GetBodyFrameIdOrThrow(self.plant.world_body().index())
-        rgdb = RgbdSensor(
-            # plant.GetBodyFrameIdOrThrow(L7.body().index()),
-            world_id,
-            RigidTransform(p=[1, 0, 0]),
-            # xyz_rpy_deg([2, 0, 0.75], [0, 0, 0]),
+        L7 = self.plant.GetFrameByName(self.link_names(7))
+        # Make camera
+        self.camera = RgbdSensor(
+            self.plant.GetBodyFrameIdOrThrow(L7.body().index()),
+            RigidTransform(RollPitchYaw([0,0,np.pi/2]), [0, 0, 0.1]),
             color_camera=color_camera,
             depth_camera=depth_camera,
         )
 
-        self.builder.AddSystem(rgdb)
+        # Connect with outputs
+        self.builder.AddSystem(self.camera)
         self.builder.Connect(
             self.scene_graph.get_query_output_port(),
-            rgdb.query_object_input_port(),
+            self.camera.query_object_input_port(),
         )
+
+        self.builder.ExportOutput(self.camera.color_image_output_port(), "color_image")
+        # self.builder.ExportOutput(self.camera.depth_image_32F_output_port(), "depth_image")
 
     def add_controller(self):
         """Add a PID controller to control arm"""
@@ -160,7 +185,7 @@ class ArmSim:
                 self.builder,
                 self.scene_graph,
                 self.meshcat,
-                MeshcatVisualizerParams(role=Role.kPerception, prefix="visual"),
+                MeshcatVisualizerParams(),
             )
 
         # Build final diagram
@@ -172,10 +197,6 @@ class ArmSim:
         self.simulator.set_target_realtime_rate(1.0)
         # Context = all state information of simulator
         self.context = self.simulator.get_mutable_context()
-
-        # TODO: Camera stuff
-        # sensor_context = diagram.GetMutableSubsystemContext(rgdb, context)
-        # color = rgdb.color_image_output_port().Eval(sensor_context).data
 
         # It takes a second for meshcat to load
         time.sleep(wait_load)
@@ -210,6 +231,10 @@ class ArmSim:
         # There is a way to make these change through the simulation that we might want to figure out
         self.diagram.get_input_port(0).FixValue(self.context, qd)
 
+        # TODO: Camera stuff
+        if self.camera is not None:
+            image = self.diagram.GetOutputPort("color_image").Eval(self.context)
+
         if self.viz:
             self.visualizer.StartRecording()
         self.simulator.AdvanceTo(5.0)
@@ -219,12 +244,18 @@ if __name__ == "__main__":
     sim = ArmSim(viz=True)
     # Setup everything in environment
     sim.add_arm()
+    # Add mustard bottle in
+    sim.add_mesh("meshes/cylinder.sdf", "cylinder_link", RigidTransform(RollPitchYaw([0.1,0,0]), [1,0,0.75]))
+    # Visualizer end effector pose
+    sim.add_frame(7)
     sim.plant_finalize()
+
     sim.add_controller()
+    sim.add_camera()
 
     # Get sim ready
-    q0 = np.zeros(7)
-    qd = np.array([0, np.pi / 2, 0, -np.pi / 2, 0, np.pi / 2, 0])
+    q0 = np.array([0, np.pi / 2, 0, np.pi / 2, 0, np.pi / 2, 0])
+    qd = np.zeros(7)
     sim.sim_setup(wait_load=3)
     # sim.save_diagram("diagram.svg")
     sim.sim_run(q0=q0, qd=qd)
