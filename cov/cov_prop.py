@@ -4,6 +4,11 @@ import matplotlib.pyplot as plt
 from scipy.linalg import expm
 
 # ------------------------- Setup single 2link planar arm ------------------------- #
+"""
+Arm is defined with x-axis right, y-axis up, z-axis out of page
+2 link arm with one link at origin, another distance l away
+Both links rotate about positive z-axis
+"""
 zero = np.eye(4)
 zero[:3,3] = [2,0,0]
 
@@ -27,10 +32,10 @@ arm = ArmSE3(screws, zero)
 
 # ------------------------- Propagate particles through distribution ------------------------- #
 N = 10000
-var = [0.5, 0.5]
+var = [0.1, 0.1]
 theta = np.array([
-    0,
-    0
+    np.pi/4,
+    np.pi/4
 ])
 thetas_noisy = np.random.normal(theta, np.sqrt(var), size=(N,2))
 
@@ -39,6 +44,19 @@ fk_noisy = [arm.fk(t) for t in thetas_noisy]
 
 
 # ------------------------- Sample from posterior distribution ------------------------- #
+# # CORRECT WAY - No approximations to combine exponential for noise elements
+# cov = np.zeros((6,6))
+# noise = []
+# for i in range(2):
+#     adj_inv = np.linalg.inv( arm._adjoint( arm.fk(theta[i+1:], idx_start=i+1) ) )
+#     xi = adj_inv@arm.screws[i]
+#     cov = np.outer(xi, xi)*var[i]
+#     noise.append( np.random.multivariate_normal(np.zeros(6), cov, size=N) )
+
+# fk_noisy_prop = [fk_true@arm._exp(w1)@arm._exp(w2) for w1, w2 in zip(*noise)]
+
+# APPROXIMATION - Combine matrix exponential which drops some higher order terms 
+# This approximation will matter less w/ smaller noises
 cov = np.zeros((6,6))
 for i in range(2):
     adj_inv = np.linalg.inv( arm._adjoint( arm.fk(theta[i+1:], idx_start=i+1) ) )
@@ -46,7 +64,6 @@ for i in range(2):
     cov += np.outer(xi, xi)*var[i]
 
 noise = np.random.multivariate_normal(np.zeros(6), cov, size=N)
-# print(fk_true)
 fk_noisy_prop = [fk_true@arm._exp(w) for w in noise]
 
 
