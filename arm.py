@@ -34,6 +34,11 @@ Functionality:
 
 Code Quality:
 - Test? That may be overkill for this
+
+Links that helped for ticking:
+https://github.com/RussTedrake/manipulation/blob/master/manipulation/drake_gym.py
+https://github.com/RussTedrake/manipulation/blob/master/manipulation/envs/box_flipup.py
+https://github.com/RobotLocomotion/drake/issues/15508
 """
 
 
