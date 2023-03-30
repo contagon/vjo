@@ -1,5 +1,6 @@
 # Import some basic libraries and functions for this tutorial.
 import time
+from typing import Optional, Tuple, Union
 
 import numpy as np
 import pydot
@@ -32,13 +33,24 @@ Functionality:
 - Probably need to make more interesting trajectories
 
 Code Quality:
-- Add TypeHints
 - Test? That may be overkill for this
 """
 
 
 class ArmSim:
-    def __init__(self, viz=True, time_step=0.1, sim_time_step=0.0001):
+    def __init__(
+        self, viz: bool = True, time_step: float = 0.1, sim_time_step: float = 0.0001
+    ) -> None:
+        """Arm simulation class.
+
+        Args:
+            viz (bool, optional): Whether to run in meshcat visualizer.
+                Defaults to True.
+            time_step (float, optional): Amount of time between simulation ticks.
+                Defaults to 0.1.
+            sim_time_step (float, optional): Integration step used for dynamics.
+                Defaults to 0.0001.
+        """
         # Save parameters
         self.viz = viz
         self.time_step = time_step
@@ -58,8 +70,16 @@ class ArmSim:
         self.parser = Parser(self.plant)
         self.camera = None
 
-    def add_arm(self, arm="iiwa7", offset=RigidTransform()):
-        """Add robot arm to plant"""
+    def add_arm(
+        self, arm: str = "iiwa7", offset: Optional[RigidTransform] = None
+    ) -> None:
+        """Adds robot arm to the simulation.
+
+        Args:
+            arm (str, optional): Name of robot arm to install. Defaults to "iiwa7".
+            offset (RigidTransform, optional): Offset from world origin to be
+                installed at. Defaults to None.
+        """
         if arm == "iiwa7":
             sdf = (
                 "package://drake/manipulation/models/"
@@ -70,6 +90,9 @@ class ArmSim:
         else:
             raise TypeError("Invalid robot arm type")
 
+        if offset is None:
+            offset = RigidTransform()
+
         self.parser.AddModels(url=sdf)
 
         # Connect arm to world origin
@@ -77,16 +100,21 @@ class ArmSim:
         self.plant.WeldFrames(self.plant.world_frame(), L0, offset)
 
     def plant_finalize(self):
-        """Finalize the plant - means we're not adding anything else to ti"""
-        # Finalize the plant after loading all of the robot arm.
+        """Finalize the plant - means we're not adding anything else to it"""
         self.plant.Finalize()
 
-    def add_frame(self, frame, length=0.25, radius=0.01):
-        """Helper to visualize frames in the simulation
+    def add_frame(
+        self, frame: Union[int, str], length: float = 0.25, radius: float = 0.01
+    ) -> None:
+        """Visualize a frame in the simulation.
 
-        If integer, defaults to that frame on the arm. If string
-        gets the frame with that name.
+        Args:
+            frame (Union[int, str]): Either the name of a frame, or a
+                integer of the arm link.
+            length (float, optional): Length of frame axes. Defaults to 0.25.
+            radius (float, optional): Radius of frame axes. Defaults to 0.01.
         """
+
         if type(frame) is int:
             frame = self.plant.GetFrameByName(self.link_names(frame))
         elif type(frame) is str:
@@ -94,14 +122,42 @@ class ArmSim:
 
         AddMultibodyTriad(frame, self.scene_graph, length=length, radius=radius)
 
-    def add_mesh(self, model: str, frame_name: str, offset: RigidTransform):
+    def add_mesh(self, model: str, frame_name: str, offset: RigidTransform) -> None:
+        """Add another welded mesh to the simulation.
+
+        Args:
+            model (str): SDF file location.
+            frame_name (str): Name of frame to weld to world origin.
+            offset (RigidTransform): Offset from world origin to put it in.
+        """
         sim.parser.AddModels(model)
         self.plant.WeldFrames(
             self.plant.world_frame(), self.plant.GetFrameByName(frame_name), offset
         )
 
-    def add_camera(self):
-        """Add camera attached to end effector"""
+    def add_camera(
+        self,
+        width: int = 640,
+        height: int = 480,
+        fov_y: float = np.pi / 4,
+        offset: Optional[RigidTransform] = None,
+    ) -> np.ndarray:
+        """Add a camera to the simulation
+
+        Args:
+            width (int, optional): Image width. Defaults to 640.
+            height (int, optional): Image height. Defaults to 480.
+            fov_y (float, optional): Field of view for x/y directions.
+                Defaults to np.pi/4.
+            offset (RigidTransform, optional): Offset from the last end effector link.
+                Defaults to x=0.1, 90 degree yaw.
+
+        Returns:
+            np.ndarray: _description_
+        """
+        if offset is None:
+            offset = RigidTransform(RollPitchYaw([0, 0, np.pi / 2]), [0, 0, 0.1])
+
         # Make renderer for cameras
         renderer_name = "renderer"
         self.scene_graph.AddRenderer(
@@ -109,10 +165,12 @@ class ArmSim:
         )
 
         # Add in sensors
+        # TODO: Customize this a bit more?
+        # https://drake.mit.edu/doxygen_cxx/classdrake_1_1systems_1_1sensors_1_1_camera_info.html
         intrinsics = CameraInfo(
-            width=640,
-            height=480,
-            fov_y=np.pi / 4,
+            width=width,
+            height=height,
+            fov_y=fov_y,
         )
         core = RenderCameraCore(
             renderer_name,
@@ -126,7 +184,7 @@ class ArmSim:
         # Make camera
         self.camera = RgbdSensor(
             self.plant.GetBodyFrameIdOrThrow(L7.body().index()),
-            RigidTransform(RollPitchYaw([0, 0, np.pi / 2]), [0, 0, 0.1]),
+            offset,
             color_camera=color_camera,
             depth_camera=depth_camera,
         )
@@ -141,13 +199,21 @@ class ArmSim:
         self.builder.ExportOutput(self.camera.color_image_output_port(), "color_image")
         # self.builder.ExportOutput(self.camera.depth_image_32F_output_port(), "depth_image") # noqa 501
 
-    def add_controller(self):
-        """Add a PID controller to control arm"""
+        return intrinsics.intrinsic_matrix()
+
+    def add_controller(self, kp: float = 10, kd: float = 5, ki: float = 1) -> None:
+        """Add a PID controller to control arm.
+
+        Args:
+            kp (float, optional): Proportional gain. Defaults to 10.
+            kd (float, optional): Derivative gain. Defaults to 5.
+            ki (float, optional): Integral gain. Defaults to 1.
+        """
         cont = InverseDynamicsController(
             self.plant,
-            kp=np.full(self.N, 10),
-            kd=np.full(self.N, 5),
-            ki=np.full(self.N, 1),
+            kp=np.full(self.N, kp),
+            kd=np.full(self.N, kd),
+            ki=np.full(self.N, ki),
             has_reference_acceleration=False,
         )
         self.controller = self.builder.AddNamedSystem("controller", cont)
@@ -163,14 +229,19 @@ class ArmSim:
             self.plant.get_actuation_input_port(),
         )
 
-        # TODO: Put this elsewhere?
         # Make input of entire system the controller input
         self.builder.ExportInput(self.controller.get_input_port_desired_state())
         # Make the arm state an output from the diagram.
         self.builder.ExportOutput(self.plant.get_state_output_port())
 
-    def sim_setup(self, q0=None, wait_load=2):
-        """Setup actual simulation using diagram"""
+    def sim_setup(self, q0: Optional[np.ndarray] = None, wait_load: float = 2) -> None:
+        """Setup final simulation environment
+
+        Args:
+            q0 (np.ndarray, optional): Initial state of the robot arm. Defaults to None.
+            wait_load (float, optional): Sometimes meshcat takes a bit to load and you
+                can miss everything. Time to wait before starting. Defaults to 2.
+        """
         if self.viz:
             # Add simulation to meshcat
             self.visualizer = MeshcatVisualizer.AddToBuilder(
@@ -205,16 +276,27 @@ class ArmSim:
         # It takes a second for meshcat to load
         time.sleep(wait_load)
 
-    def save_diagram(self, file):
-        """Save diagram. MUST call sim_setup first"""
+    def save_diagram(self, file: str) -> None:
+        """Save diagram. MUST call sim_setup first
+
+        Args:
+            file (str): File to save diagram to.
+        """
         svg = pydot.graph_from_dot_data(self.diagram.GetGraphvizString(max_depth=2))[
             0
         ].create_svg()
         with open(file, "wb") as f:
             f.write(svg)
 
-    def step(self, qd):
-        """Run simple simulation"""
+    def step(self, qd: np.ndarray) -> Tuple[float, np.ndarray]:
+        """Make a single simulation step
+
+        Args:
+            qd (np.ndarray): Desire joint angle at this step.
+
+        Returns:
+            Tuple[float, np.ndarray]: time, image
+        """
         time = self.context.get_time()
 
         # Append velocities of 0s
@@ -239,7 +321,8 @@ class ArmSim:
 
 
 if __name__ == "__main__":
-    # ------------------------- Set up simulation enviroment ------------------------- #
+    # ------------------------- Set up simulation ------------------------- #
+    # Setup simulation environment
     sim = ArmSim(viz=True)
     # Setup everything in environment
     sim.add_arm()
@@ -249,19 +332,20 @@ if __name__ == "__main__":
         "cylinder_link",
         RigidTransform(RollPitchYaw([0.1, 0, 0]), [1, 0, 0.75]),
     )
-    # Visualizer end effector pose
-    sim.add_frame(7)
     sim.plant_finalize()
 
+    # Add in sensors and controller
     sim.add_controller()
     sim.add_camera()
+    # Visualizer end effector pose
+    sim.add_frame(7)
 
     # Get sim ready
     q0 = np.zeros(7)
     sim.sim_setup(q0, wait_load=3)
 
+    # ------------------------- Run simulation ------------------------- #
     # Run simulation
     qd = np.array([0, np.pi / 2, 0, np.pi / 2, 0, np.pi / 2, 0])
     for i in range(100):
-        # sim.save_diagram("diagram.svg")
         sim.step(qd=qd)
