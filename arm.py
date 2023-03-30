@@ -45,8 +45,10 @@ Code Quality:
 
 
 class ArmSim:
-    def __init__(self, viz=True, sim_time_step=0.0001):
+    def __init__(self, viz=True, time_step=0.1, sim_time_step=0.0001):
+        # Save parameters
         self.viz = viz
+        self.time_step = time_step
 
         if self.viz:
             self.meshcat = StartMeshcat()
@@ -61,10 +63,9 @@ class ArmSim:
         )
         # Parser reads .sdf and .urdf files and puts them into the plant
         self.parser = Parser(self.plant)
-
         self.camera = None
 
-    def add_arm(self, arm="iiwa7"):
+    def add_arm(self, arm="iiwa7", offset=RigidTransform()):
         """Add robot arm to plant"""
         if arm == "iiwa7":
             sdf = (
@@ -76,11 +77,11 @@ class ArmSim:
         else:
             raise TypeError("Invalid robot arm type")
 
-        (self.iiwa,) = self.parser.AddModels(url=sdf)
+        self.parser.AddModels(url=sdf)
 
         # Connect arm to world origin
         L0 = self.plant.GetFrameByName(self.link_names(0))
-        self.plant.WeldFrames(self.plant.world_frame(), L0)
+        self.plant.WeldFrames(self.plant.world_frame(), L0, offset)
 
     def plant_finalize(self):
         """Finalize the plant - means we're not adding anything else to ti"""
@@ -175,7 +176,7 @@ class ArmSim:
         # Make the arm state an output from the diagram.
         self.builder.ExportOutput(self.plant.get_state_output_port())
 
-    def sim_setup(self, wait_load=2):
+    def sim_setup(self, q0=None, wait_load=2):
         """Setup actual simulation using diagram"""
         if self.viz:
             # Add simulation to meshcat
@@ -196,6 +197,18 @@ class ArmSim:
         # Context = all state information of simulator
         self.context = self.simulator.get_mutable_context()
 
+        # Parse inputs / desired
+        if q0 is None:
+            q0 = np.zeros(7)
+        # Append velocities of 0s
+        q0 = np.append(q0, np.zeros(7))
+
+        # Set starting state
+        plant_context = self.diagram.GetMutableSubsystemContext(
+            self.plant, self.context
+        )
+        plant_context.get_mutable_discrete_state_vector().SetFromVector(q0)
+
         # It takes a second for meshcat to load
         time.sleep(wait_load)
 
@@ -207,42 +220,32 @@ class ArmSim:
         with open(file, "wb") as f:
             f.write(svg)
 
-    def sim_run(self, q0=None, qd=None):
+    def step(self, qd):
         """Run simple simulation"""
-        # Parse inputs / desired
-        if q0 is None:
-            q0 = np.zeros(7)
-        if qd is None:
-            qd = np.zeros(7)
+        time = self.context.get_time()
 
         # Append velocities of 0s
-        q0 = np.append(q0, np.zeros(7))
         qd = np.append(qd, np.zeros(7))
 
-        # Set starting state
-        plant_context = self.diagram.GetMutableSubsystemContext(
-            self.plant, self.context
-        )
-        plant_context.get_mutable_discrete_state_vector().SetFromVector(q0)
-
-        # Fix the desired joint angles
-        # There is a way to make these change through the simulation that we might want to figure out
+        # Set the desired joint angle
         self.diagram.get_input_port(0).FixValue(self.context, qd)
 
-        # TODO: Camera stuff
+        self.simulator.AdvanceTo(time + self.time_step)
+
+        # Get image if cammera has been added
         if self.camera is not None:
-            image = self.diagram.GetOutputPort("color_image").Eval(self.context)
+            image = self.diagram.GetOutputPort("color_image").Eval(self.context).data[...,:3]
+        else:
+            image = None
 
-        if self.viz:
-            self.visualizer.StartRecording()
-        self.simulator.AdvanceTo(5.0)
-
+        return time, image
 
 if __name__ == "__main__":
+    # ------------------------- Set up simulation enviroment ------------------------- #
     sim = ArmSim(viz=True)
     # Setup everything in environment
     sim.add_arm()
-    # Add mustard bottle in
+    # Add cylinder in
     sim.add_mesh(
         "meshes/cylinder.sdf",
         "cylinder_link",
@@ -256,8 +259,11 @@ if __name__ == "__main__":
     sim.add_camera()
 
     # Get sim ready
-    q0 = np.array([0, np.pi / 2, 0, np.pi / 2, 0, np.pi / 2, 0])
-    qd = np.zeros(7)
-    sim.sim_setup(wait_load=3)
-    # sim.save_diagram("diagram.svg")
-    sim.sim_run(q0=q0, qd=qd)
+    q0 = np.zeros(7)
+    sim.sim_setup(q0, wait_load=3)
+
+    # Run simulation
+    qd = np.array([0, np.pi / 2, 0, np.pi / 2, 0, np.pi / 2, 0])
+    for i in range(100):
+        # sim.save_diagram("diagram.svg")
+        sim.step(qd=qd)
