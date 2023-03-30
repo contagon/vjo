@@ -1,52 +1,12 @@
 # From https://github.com/RussTedrake/manipulation/blob/master/manipulation/scenarios.py#L506
-import os
-import sys
-import warnings
 
 import numpy as np
 from pydrake.all import (
-    AbstractValue,
-    Adder,
-    AddMultibodyPlantSceneGraph,
-    BallRpyJoint,
-    BaseField,
-    Box,
-    CameraInfo,
-    Capsule,
-    ClippingRange,
-    CoulombFriction,
     Cylinder,
-    Demultiplexer,
-    DepthImageToPointCloud,
-    DepthRange,
-    DepthRenderCamera,
-    DiagramBuilder,
-    DifferentialInverseKinematicsIntegrator,
-    DifferentialInverseKinematicsParameters,
     GeometryInstance,
-    InverseDynamicsController,
-    LeafSystem,
-    MakeMultibodyStateToWsgStateSystem,
     MakePhongIllustrationProperties,
-    MakeRenderEngineVtk,
-    ModelInstanceIndex,
-    MultibodyPlant,
-    Parser,
-    PassThrough,
-    PrismaticJoint,
-    RenderCameraCore,
-    RenderEngineVtkParams,
-    RevoluteJoint,
-    Rgba,
-    RgbdSensor,
     RigidTransform,
-    RollPitchYaw,
     RotationMatrix,
-    SchunkWsgPositionController,
-    SpatialInertia,
-    Sphere,
-    StateInterpolatorWithDiscreteDerivative,
-    UnitInertia,
 )
 
 
