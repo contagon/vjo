@@ -3,12 +3,7 @@ import time
 
 import numpy as np
 import pydot
-from pydrake.geometry import (
-    MeshcatVisualizer,
-    MeshcatVisualizerParams,
-    Role,
-    StartMeshcat,
-)
+from pydrake.geometry import MeshcatVisualizer, MeshcatVisualizerParams, StartMeshcat
 from pydrake.geometry.render import (
     ClippingRange,
     ColorRenderCamera,
@@ -17,7 +12,6 @@ from pydrake.geometry.render import (
     MakeRenderEngineVtk,
     RenderCameraCore,
     RenderEngineVtkParams,
-    RenderLabel,
 )
 from pydrake.math import RigidTransform, RollPitchYaw
 from pydrake.multibody.parsing import Parser
@@ -33,8 +27,7 @@ from utils import AddMultibodyTriad
 TODO LIST
 
 Functionality:
-- Figure out how to pull joint/camera data at a specified interval
-    - Do we want to ROS publish it to run live, or just pull it and save it somewhere?
+- Figure out how to pull joint data
 - Make camera scene more interesting
 - Probably need to make more interesting trajectories
 
@@ -146,7 +139,7 @@ class ArmSim:
         )
 
         self.builder.ExportOutput(self.camera.color_image_output_port(), "color_image")
-        # self.builder.ExportOutput(self.camera.depth_image_32F_output_port(), "depth_image")
+        # self.builder.ExportOutput(self.camera.depth_image_32F_output_port(), "depth_image") # noqa 501
 
     def add_controller(self):
         """Add a PID controller to control arm"""
@@ -234,11 +227,16 @@ class ArmSim:
 
         # Get image if cammera has been added
         if self.camera is not None:
-            image = self.diagram.GetOutputPort("color_image").Eval(self.context).data[...,:3]
+            image = (
+                self.diagram.GetOutputPort("color_image")
+                .Eval(self.context)
+                .data[..., :3]
+            )
         else:
             image = None
 
         return time, image
+
 
 if __name__ == "__main__":
     # ------------------------- Set up simulation enviroment ------------------------- #
