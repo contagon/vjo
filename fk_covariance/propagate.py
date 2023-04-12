@@ -43,7 +43,7 @@ arm = ArmSE3(screws, zero)
 
 # ------------------------- Propagate particles through distribution ------------------------- #
 N = 10000
-var = [0.1, 0.1]
+var = [0.01, 0.01]
 theta = np.array([
     np.pi/4,
     np.pi/4
