@@ -7,27 +7,51 @@ from gtsam.symbol_shorthand import X
 
 from fk import ArmSE3
 
-# ------------------------- Parameters ------------------------- #
+# ------------------------- Data loading ------------------------- #
 file_joints = ""
 dir_camera = ""
 
 
 # ------------------------- Setup arm ------------------------- #
 # Setup robot arm
-# TODO Switch to iiwa screws
 M = 7
-zero = np.eye(4)
 
-w = np.array([[0, 0, 1], [0, 0, 1]])
-p = np.array([[0, 0, 0], [0, 0, 0]])
+dbs = 0.340
+dse = 0.400
+dew = 0.400
+dwf = 0.126
+
+zero = np.eye(4)
+zero[:3, 3] = [0, 0, dbs + dse + dew + dwf]
+w = np.array(
+    [
+        [0, 0, 1],
+        [0, 1, 0],
+        [0, 0, 1],
+        [0, -1, 0],
+        [0, 0, 1],
+        [0, 1, 0],
+        [0, 0, 1],
+    ]
+)
+p = np.array(
+    [
+        [0, 0, 0],
+        [0, 0, dbs],
+        [0, 0, dbs],
+        [0, 0, dbs + dse],
+        [0, 0, dbs + dse],
+        [0, 0, dbs + dse + dew],
+        [0, 0, dbs + dse + dew + dwf],
+    ]
+)
 
 screws = np.zeros((M, 6))
-for i in range(2):
+screws[:, :3] = w
+for i in range(M):
     screws[i, 3:] = -np.cross(w[i], p[i])
-    screws[i, :3] = w[i]
 
 arm = ArmSE3(screws, zero)
-
 
 # ------------------------- Load data ------------------------- #
 joints = np.load(file_joints)
@@ -46,11 +70,11 @@ graph = gtsam.NonlinearFactorGraph()
 theta = gtsam.Values()
 
 for i in range(N):
-    # Add joint prior factor
+    # Get SE3 estimate and propagated covariance
     fk_est = arm.fk(joints[i])
-    # TODO: Implement arm.cov
-    fk_propagated_cov = arm.cov(joints[i], cov)
+    fk_propagated_cov = arm.fk_prop_cov(joints[i], cov)
 
+    # Add factor to graph
     prior = gtsam.PriorFactorPose3(
         X(i), fk_est, gtsam.noiseModel.Gaussian.Covariance(fk_propagated_cov)
     )
