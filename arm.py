@@ -4,6 +4,8 @@ from typing import Optional, Tuple, Union
 
 import numpy as np
 import pydot
+import cv2
+from matplotlib import pyplot as plt
 from pydrake.geometry import MeshcatVisualizer, MeshcatVisualizerParams, StartMeshcat
 from pydrake.geometry.render import (
     ClippingRange,
@@ -19,10 +21,12 @@ from pydrake.multibody.parsing import Parser
 from pydrake.multibody.plant import AddMultibodyPlantSceneGraph
 from pydrake.systems.analysis import Simulator
 from pydrake.systems.controllers import InverseDynamicsController
-from pydrake.systems.framework import DiagramBuilder
-from pydrake.systems.sensors import CameraInfo, RgbdSensor
+from pydrake.systems.framework import DiagramBuilder, LeafSystem
+from pydrake.systems.sensors import CameraInfo, RgbdSensor 
 
 from utils import AddMultibodyTriad
+import os
+import datetime
 
 """
 TODO LIST
@@ -41,6 +45,14 @@ https://github.com/RussTedrake/manipulation/blob/master/manipulation/envs/box_fl
 https://github.com/RobotLocomotion/drake/issues/15508
 """
 
+# class NoisyJointSensor(LeafSystem):
+#     def __init__(self, variance: float = 0.01):
+#         super.__init__()
+#         self.variance = variance
+
+#     def input_port_ticket(self, plant)
+
+#     def output_port(self, )
 
 class ArmSim:
     def __init__(
@@ -59,6 +71,7 @@ class ArmSim:
         # Save parameters
         self.viz = viz
         self.time_step = time_step
+        self.image_count = 0
 
         if self.viz:
             self.meshcat = StartMeshcat()
@@ -67,7 +80,7 @@ class ArmSim:
         # Diagram is all of the seperate systems combined
         self.builder = DiagramBuilder()
         # Plant = robot arm and anything else in the scene
-        # Scene_graph = i don't really know?
+        # Scene_graph = i don't really know
         self.plant, self.scene_graph = AddMultibodyPlantSceneGraph(
             self.builder, time_step=sim_time_step
         )
@@ -319,10 +332,12 @@ class ArmSim:
                 .Eval(self.context)
                 .data[..., :3]
             )
+            plant_state = self.diagram.GetOutputPort("plant_state").Eval(self.context)
         else:
             image = None
+            plant_state = None
 
-        return time, image
+        return time, image, plant_state
 
 
 if __name__ == "__main__":
@@ -352,5 +367,14 @@ if __name__ == "__main__":
     # ------------------------- Run simulation ------------------------- #
     # Run simulation
     qd = np.array([0, np.pi / 2, 0, np.pi / 2, 0, np.pi / 2, 0])
-    for i in range(100):
-        sim.step(qd=qd)
+    dirname = str(datetime.datetime.now())
+    os.mkdir(dirname)
+    with open(os.path.join(dirname,'states.csv'), 'w') as state_file:
+        state_file.write('index,time,joint0,joint1,joint2,joint3,joint4,joint5,joint6,joint7')
+        for i in range(100):
+            time, image, plant_state = sim.step(qd=qd)
+            state_file.write('\n')
+            line = ','.join([str(i),str(time)])
+            line += ','+','.join(plant_state[:7].astype(str))
+            state_file.write(line)
+            cv2.imwrite(str(os.path.join(dirname,'image'+str(i)+'.png')), image)
