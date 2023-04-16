@@ -22,7 +22,7 @@ from pydrake.multibody.plant import AddMultibodyPlantSceneGraph
 from pydrake.systems.analysis import Simulator
 from pydrake.systems.controllers import InverseDynamicsController
 from pydrake.systems.framework import DiagramBuilder, LeafSystem
-from pydrake.systems.sensors import CameraInfo, RgbdSensor 
+from pydrake.systems.sensors import CameraInfo, RgbdSensor
 
 from utils import AddMultibodyTriad
 import os
@@ -53,6 +53,7 @@ https://github.com/RobotLocomotion/drake/issues/15508
 #     def input_port_ticket(self, plant)
 
 #     def output_port(self, )
+
 
 class ArmSim:
     def __init__(
@@ -369,12 +370,14 @@ if __name__ == "__main__":
     qd = np.array([0, np.pi / 2, 0, np.pi / 2, 0, np.pi / 2, 0])
     dirname = str(datetime.datetime.now())
     os.mkdir(dirname)
-    with open(os.path.join(dirname,'states.csv'), 'w') as state_file:
-        state_file.write('index,time,joint0,joint1,joint2,joint3,joint4,joint5,joint6,joint7')
+    with open(os.path.join(dirname, "states.csv"), "w") as state_file:
+        state_file.write(
+            "index,time,joint0,joint1,joint2,joint3,joint4,joint5,joint6,joint7"
+        )
         for i in range(100):
             time, image, plant_state = sim.step(qd=qd)
-            state_file.write('\n')
-            line = ','.join([str(i),str(time)])
-            line += ','+','.join(plant_state[:7].astype(str))
+            state_file.write("\n")
+            line = ",".join([str(i), str(time)])
+            line += "," + ",".join(plant_state[:7].astype(str))
             state_file.write(line)
-            cv2.imwrite(str(os.path.join(dirname,'image'+str(i)+'.png')), image)
+            cv2.imwrite(str(os.path.join(dirname, "image" + str(i) + ".png")), image)
