@@ -65,7 +65,6 @@ def optimize(args):
         for f in os.listdir(args.data_folder)
         if os.path.isfile(os.path.join(args.data_folder, f))
     ]
-    [cv2.imread(f) for f in files_camera]
 
     # ------------------------- Run factor graph ------------------------- #
 
@@ -84,7 +83,57 @@ def optimize(args):
         graph.push_back(prior)
         theta.insert(X(i), fk_est)
 
-        # TODO: Implement camera factors
+    orb = cv2.ORB_create()
+    matcher = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
+    prev_image = cv2.imread(files_camera[0])
+    prev_keypoints, prev_descriptors = orb.detectAndCompute(prev_image, None)
+    NOT_MATCHED = -1
+    prev_keypoint_indices = [NOT_MATCHED for prev_keypoint in prev_keypoints]
+    keypoint_count = 0
+
+    for i, camera_file in enumerate(files_camera[1:]):
+        new_image = cv2.imread(camera_file)
+        new_keypoints, new_descriptors = orb.detectAndCompute(new_image, None)
+        matches = matcher.match(prev_keypoints, new_keypoints)
+        matches = sorted(matches, lambda match: match.distance)
+        new_keypoint_indices = [NOT_MATCHED for match in matches]
+        for match in matches[:10]:
+            prev_index = match.trainIdx
+            new_index = match.queryIdx
+            if prev_keypoint_indices[prev_index] == NOT_MATCHED:
+                prev_keypoint_indices[prev_index] = keypoint_count
+                keypoint_count += 1
+                prev_factor = gtsam.GenericProjectionFactorCal3_S2(
+                    prev_keypoints[prev_index],
+                    noise,
+                    X(i - 1),
+                    L(prev_keypoint_indices[prev_index]),
+                    calibration,
+                )
+                graph.push_back(prev_factor)
+                theta.insert(
+                    L(prev_keypoint_indices[prev_index]),
+                    gtsam.triangulatePoint3(
+                        [theta.atPose3(X(i - 1)), theta.atPose3(X(i))],
+                        calibration,
+                        measuments,
+                    ),
+                )
+            new_keypoint_indices[new_index] = prev_keypoint_indices[prev_index]
+            factor = gtsam.GenericProjectionFactorCal3_S2(
+                new_keypoint_indices[new_index],
+                noise,
+                X(i),
+                L(new_keypoint_indices[new_index]),
+                calibration,
+            )
+            graph.push_back(factor)
+            prev_keypoints = new_keypoints
+            prev_descriptors = new_descriptors
+            prev_keypoint_indices = new_keypoint_indices
+
+        optimizer = gtsam.LevenbergMarquardtOptimizer(graph, theta)
+        solution = optimizer.optimize()
 
 
 if __name__ == "__main__":
