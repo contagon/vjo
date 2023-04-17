@@ -4,6 +4,7 @@ import os
 import cv2
 import gtsam
 import numpy as np
+import pandas as pd
 from gtsam.symbol_shorthand import X
 
 from fk import ArmSE3
@@ -52,12 +53,13 @@ def optimize(args):
     arm = ArmSE3(screws, zero)
 
     # ------------------------- Load data ------------------------- #
-    file_joints = os.path.joint(args.data_folder, "joints.csv")
+    file_joints = os.path.join(args.data_folder, "joints.csv")
 
     # TODO: Save joint covariance at top of file?
     cov = np.ones(M)
 
-    joints = np.load(file_joints)
+    data = pd.read_csv(file_joints)
+    joints = data.to_numpy()
     N = joints.shape[0]
 
     files_camera = [
@@ -73,7 +75,7 @@ def optimize(args):
 
     for i in range(N):
         # Get SE3 estimate and propagated covariance
-        fk_est = arm.fk(joints[i])
+        fk_est = arm.fk(joints[i, 1:9])
         fk_propagated_cov = arm.fk_prop_cov(joints[i], cov)
 
         # Add factor to graph
