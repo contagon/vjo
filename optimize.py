@@ -90,6 +90,14 @@ def optimize(args):
     NOT_MATCHED = -1
     prev_keypoint_indices = [NOT_MATCHED for prev_keypoint in prev_keypoints]
     keypoint_count = 0
+    fx = 1.0
+    fy = 1.0
+    s = 0.0
+    u0 = 0.0
+    v0 = 0.0
+    calibration = gtsam.Cal3_S2(fx, fy, s, u0, v0)
+    camera_cov = np.diag([0.1, 0.1])
+    camera_noise = gtsam.noiseModel.Gaussian.Covariance(camera_cov)
 
     for i, camera_file in enumerate(files_camera[1:]):
         new_image = cv2.imread(camera_file)
@@ -105,7 +113,7 @@ def optimize(args):
                 keypoint_count += 1
                 prev_factor = gtsam.GenericProjectionFactorCal3_S2(
                     prev_keypoints[prev_index],
-                    noise,
+                    camera_noise,
                     X(i - 1),
                     L(prev_keypoint_indices[prev_index]),
                     calibration,
@@ -122,7 +130,7 @@ def optimize(args):
             new_keypoint_indices[new_index] = prev_keypoint_indices[prev_index]
             factor = gtsam.GenericProjectionFactorCal3_S2(
                 new_keypoint_indices[new_index],
-                noise,
+                camera_noise,
                 X(i),
                 L(new_keypoint_indices[new_index]),
                 calibration,
