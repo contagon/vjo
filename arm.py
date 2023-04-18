@@ -153,6 +153,19 @@ class ArmSim:
             self.plant.world_frame(), self.plant.GetFrameByName(frame_name), offset
         )
 
+    def add_mesh1(self, model: str) -> None:
+        """Add another welded mesh to the simulation.
+
+        Args:
+            model (str): SDF file location.
+            frame_name (str): Name of frame to weld to world origin.
+            offset (RigidTransform): Offset from world origin to put it in.
+        """
+        sim.parser.AddModels(model)
+        # self.plant.WeldFrames(
+        #     self.plant.world_frame(), self.plant.GetFrameByName(frame_name), offset
+        # )
+
     def add_camera(
         self,
         width: int = 640,
@@ -352,6 +365,26 @@ if __name__ == "__main__":
         "cylinder_link",
         RigidTransform(RollPitchYaw([0.1, 0, 0]), [1, 0, 0.75]),
     )
+    sim.add_mesh(
+        "meshes/box.sdf",
+        "box_link",
+        RigidTransform(RollPitchYaw([0.1, 0.1, 0.1]), [-0.5, 0, 0]),
+    )
+    sim.add_mesh(
+        "meshes/capsule.sdf",
+        "capsule_link",
+        RigidTransform(RollPitchYaw([0.1, 0, 0.1]), [0, 0.5, 1]),
+    )
+    sim.add_mesh(
+        "meshes/ellipsoid.sdf",
+        "ellipsoid_link",
+        RigidTransform(RollPitchYaw([0, 0, 1.57]), [0, 1, 0]),
+    )
+    # sim.add_mesh(
+    #     "meshes/model.sdf",
+    #     "model_link",
+    #     RigidTransform(RollPitchYaw([0, 0, 1.57]), [0, 1, 0]),
+    # )
     sim.plant_finalize()
 
     # Add in sensors and controller
