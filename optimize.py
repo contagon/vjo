@@ -3,9 +3,11 @@ import os
 
 import cv2
 import gtsam
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from gtsam.symbol_shorthand import X, L
+from gtsam.symbol_shorthand import L, X
+from gtsam.utils import plot
 
 from fk import ArmSE3
 
@@ -65,7 +67,7 @@ def optimize(args):
     files_camera = [
         os.path.join(args.data_folder, f)
         for f in os.listdir(args.data_folder)
-        if os.path.isfile(os.path.join(args.data_folder, f))
+        if os.path.splitext(f)[1] == ".png"
     ]
     files_camera = sorted(files_camera)
 
@@ -111,26 +113,42 @@ def optimize(args):
         new_image = cv2.imread(camera_file)
         new_keypoints, new_descriptors = orb.detectAndCompute(new_image, None)
         matches = matcher.match(prev_descriptors, new_descriptors)
-        outImg = cv2.drawMatches(
-            prev_image, prev_keypoints, new_image, new_keypoints, matches, None
-        )
-        cv2.imshow("matches", outImg)
-        cv2.waitKey(0)
         matches = sorted(matches, key=lambda match: match.distance)
         new_keypoint_indices = [NOT_MATCHED for keypoint in new_keypoints]
-        poses = gtsam.Pose3Vector()
-        poses.append(theta.atPose3(X(i - 1)))
-        poses.append(theta.atPose3(X(i)))
-        print(poses)
-        for match in matches[:10]:
+        poses = gtsam.Pose3Vector(
+            [
+                theta.atPose3(X(i - 1)),
+                theta.atPose3(X(i)),
+            ]
+        )
+
+        num_matches = 10
+        outImg = cv2.drawMatches(
+            prev_image,
+            prev_keypoints,
+            new_image,
+            new_keypoints,
+            matches[:num_matches],
+            None,
+        )
+        cv2.imshow("matches", outImg)
+        cv2.waitKey(1)
+
+        fig = plt.figure(0)
+        axes = fig.add_subplot(projection="3d")
+        plot.plot_pose3_on_axes(axes, poses[0])
+        plot.plot_pose3_on_axes(axes, poses[1])
+
+        for match in matches[:num_matches]:
             prev_index = match.queryIdx
             new_index = match.trainIdx
             if prev_keypoint_indices[prev_index] == NOT_MATCHED:
                 prev_keypoint_indices[prev_index] = keypoint_count
                 keypoint_count += 1
-                measurements = gtsam.Point2Vector()
-                measurements.append(np.array(prev_keypoints[prev_index].pt))
-                measurements.append(np.array(new_keypoints[prev_index].pt))
+                measurements = gtsam.Point2Vector(
+                    [prev_keypoints[prev_index].pt, new_keypoints[new_index].pt]
+                )
+
                 prev_factor = gtsam.GenericProjectionFactorCal3_S2(
                     measurements[0],
                     camera_noise,
@@ -139,15 +157,16 @@ def optimize(args):
                     calibration,
                 )
                 graph.push_back(prev_factor)
-                print(measurements)
+
                 triangulatedPoint3 = gtsam.triangulatePoint3(
                     poses, calibration, measurements, rank_tol=1e-5, optimize=True
                 )
-                print(triangulatedPoint3)
+                plot.plot_point3_on_axes(axes, triangulatedPoint3, "o")
                 theta.insert(L(prev_keypoint_indices[prev_index]), triangulatedPoint3)
+
             new_keypoint_indices[new_index] = prev_keypoint_indices[prev_index]
             factor = gtsam.GenericProjectionFactorCal3_S2(
-                np.array(new_keypoints[new_keypoint_indices[new_index]].pt),
+                np.array(new_keypoints[new_index].pt),
                 camera_noise,
                 X(i),
                 L(new_keypoint_indices[new_index]),
@@ -161,8 +180,11 @@ def optimize(args):
 
         prev_image = new_image
 
+        plot.set_axes_equal(0)
+        plt.show()
+
     optimizer = gtsam.LevenbergMarquardtOptimizer(graph, theta)
-    solution = optimizer.optimize()
+    optimizer.optimize()
 
 
 if __name__ == "__main__":

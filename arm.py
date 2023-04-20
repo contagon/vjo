@@ -1,11 +1,12 @@
 # Import some basic libraries and functions for this tutorial.
+import datetime
+import os
 import time
 from typing import Optional, Tuple, Union
 
+import cv2
 import numpy as np
 import pydot
-import cv2
-from matplotlib import pyplot as plt
 from pydrake.geometry import MeshcatVisualizer, MeshcatVisualizerParams, StartMeshcat
 from pydrake.geometry.render import (
     ClippingRange,
@@ -21,12 +22,10 @@ from pydrake.multibody.parsing import Parser
 from pydrake.multibody.plant import AddMultibodyPlantSceneGraph
 from pydrake.systems.analysis import Simulator
 from pydrake.systems.controllers import InverseDynamicsController
-from pydrake.systems.framework import DiagramBuilder, LeafSystem
+from pydrake.systems.framework import DiagramBuilder
 from pydrake.systems.sensors import CameraInfo, RgbdSensor
 
 from utils import AddMultibodyTriad
-import os
-import datetime
 
 """
 TODO LIST
@@ -358,7 +357,7 @@ class ArmSim:
 if __name__ == "__main__":
     # ------------------------- Set up simulation ------------------------- #
     # Setup simulation environment
-    sim = ArmSim(viz=True)
+    sim = ArmSim(viz=True, time_step=1)
     # Setup everything in environment
     sim.add_arm()
 
@@ -368,7 +367,11 @@ if __name__ == "__main__":
         "table_link",
         RigidTransform(RollPitchYaw([0, 0, 0]), [0, 0, -0.05]),
     )
-    # sim.add_mesh("meshes/001_chips_can/chips_can.sdf","chips_can_link",RigidTransform(RollPitchYaw([0, 0, 0]), [0, 1, 0]))
+    # sim.add_mesh(
+    #     "meshes/001_chips_can/chips_can.sdf",
+    #     "chips_can_link",
+    #     RigidTransform(RollPitchYaw([0, 0, 0]), [0, 1, 0]),
+    # )
     sim.add_mesh(
         "meshes/002_master_chef_can/master_chef_can.sdf",
         "master_chef_can_link",
@@ -501,24 +504,25 @@ if __name__ == "__main__":
     sim.add_frame(7)
 
     # Get sim ready
-    q0 = np.zeros(7)
+    N = 10
+    q0 = np.array([np.pi / 2 + 0.1, 0, 0, -np.pi / 2.0, 0, np.pi / 4, -np.pi / 2])
     sim.sim_setup(q0, wait_load=3)
 
     # ------------------------- Run simulation ------------------------- #
     # Run simulation
-    qd = np.array([0.2, 0, 0, -np.pi / 2.0, 0, np.pi / 4, 0])
-    joint0 = np.linspace(0, np.pi / 2.0, 100)
-    dirname = str(datetime.datetime.now())
+    qd = np.array([0.0, 0, 0, -np.pi / 2.0, 0, np.pi / 4, -np.pi / 2])
+    joint0 = np.linspace(np.pi / 2.0, 0, N)
+    dirname = datetime.datetime.now().strftime("%Y.%m.%d_%H.%M.%S")
     os.mkdir(dirname)
     with open(os.path.join(dirname, "joints.csv"), "w") as state_file:
         state_file.write(
             "index,time,joint0,joint1,joint2,joint3,joint4,joint5,joint6,joint7"
         )
-        for i in range(100):
+        for i in range(N):
             qd[0] = joint0[i]
-            time, image, plant_state = sim.step(qd=qd)
+            t, image, plant_state = sim.step(qd=qd)
             state_file.write("\n")
-            line = ",".join([str(i), str(time)])
+            line = ",".join([str(i), str(t)])
             line += "," + ",".join(plant_state[:7].astype(str))
             state_file.write(line)
-            cv2.imwrite(str(os.path.join(dirname, f"image{i:02d}.png")), image)
+            cv2.imwrite(str(os.path.join(dirname, f"image{i:03d}.png")), image)
