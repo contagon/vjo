@@ -359,32 +359,37 @@ if __name__ == "__main__":
     sim = ArmSim(viz=True)
     # Setup everything in environment
     sim.add_arm()
-    # Add cylinder in
-    sim.add_mesh(
-        "meshes/cylinder.sdf",
-        "cylinder_link",
-        RigidTransform(RollPitchYaw([0.1, 0, 0]), [1, 0, 0.75]),
-    )
-    sim.add_mesh(
-        "meshes/box.sdf",
-        "box_link",
-        RigidTransform(RollPitchYaw([0.1, 0.1, 0.1]), [-0.5, 0, 0]),
-    )
-    sim.add_mesh(
-        "meshes/capsule.sdf",
-        "capsule_link",
-        RigidTransform(RollPitchYaw([0.1, 0, 0.1]), [0, 0.5, 1]),
-    )
-    sim.add_mesh(
-        "meshes/ellipsoid.sdf",
-        "ellipsoid_link",
-        RigidTransform(RollPitchYaw([0, 0, 1.57]), [0, 1, 0]),
-    )
-    # sim.add_mesh(
-    #     "meshes/model.sdf",
-    #     "model_link",
-    #     RigidTransform(RollPitchYaw([0, 0, 1.57]), [0, 1, 0]),
-    # )
+
+    # Add sdf files
+    sim.add_mesh("meshes/table.sdf", "table_link", RigidTransform(RollPitchYaw([0, 0, 0]), [0, 0, -0.05]))
+    # sim.add_mesh("meshes/001_chips_can/chips_can.sdf","chips_can_link",RigidTransform(RollPitchYaw([0, 0, 0]), [0, 1, 0]))
+    sim.add_mesh("meshes/002_master_chef_can/master_chef_can.sdf","master_chef_can_link",RigidTransform(RollPitchYaw([0, 0, 0]), [0.1, 1.05, 0]))
+    sim.add_mesh("meshes/003_cracker_box/cracker_box.sdf","cracker_box_link",RigidTransform(RollPitchYaw([0, 0, 1.47]), [0.1, 1.15, 0]))
+    sim.add_mesh("meshes/004_sugar_box/sugar_box.sdf","sugar_box_link",RigidTransform(RollPitchYaw([0, 0, 1.57]), [0.25, 1.15, 0]))
+    sim.add_mesh("meshes/005_tomato_soup_can/tomato_soup_can.sdf","tomato_soup_can_link",RigidTransform(RollPitchYaw([0, 0, 0]), [0.3, 0.9, 0]))
+    sim.add_mesh("meshes/006_mustard_bottle/mustard_bottle.sdf","mustard_bottle_link",RigidTransform(RollPitchYaw([0, 0, 0]), [0.3, 1, 0]))
+    sim.add_mesh("meshes/007_tuna_fish_can/tuna_fish_can.sdf","tuna_fish_can_link",RigidTransform(RollPitchYaw([0, 0, 0]), [0.2, 1, 0]))
+    sim.add_mesh("meshes/008_pudding_box/pudding_box.sdf","pudding_box_link",RigidTransform(RollPitchYaw([0, 0, 0]), [-0.1, 0.9, 0]))
+
+    sim.add_mesh("meshes/011_banana/banana.sdf","banana_link",RigidTransform(RollPitchYaw([0, 0, 0]), [0.5, -0.5, 0]))
+    sim.add_mesh("meshes/012_strawberry/strawberry.sdf","strawberry_link",RigidTransform(RollPitchYaw([0, 0, 0]), [0.55, -0.5, 0]))
+    sim.add_mesh("meshes/013_apple/apple.sdf","apple_link",RigidTransform(RollPitchYaw([0, 0, 0]), [0.6, -0.55, 0]))
+    sim.add_mesh("meshes/014_lemon/lemon.sdf","lemon_link",RigidTransform(RollPitchYaw([0, 0, 0]), [0.7, -0.5, 0]))
+    sim.add_mesh("meshes/015_peach/peach.sdf","peach_link",RigidTransform(RollPitchYaw([0, 0, 0]), [0.7, -0.6, 0]))
+    sim.add_mesh("meshes/016_pear/pear.sdf","pear_link",RigidTransform(RollPitchYaw([0, 0, 0.3]), [0.45, -0.7, 0]))
+    sim.add_mesh("meshes/017_orange/orange.sdf","orange_link",RigidTransform(RollPitchYaw([0, 0, 0]), [0.5, -0.7, 0]))
+    sim.add_mesh("meshes/018_plum/plum.sdf","plum_link",RigidTransform(RollPitchYaw([0, 0, 0]), [0.55, -0.3, 0]))
+
+    sim.add_mesh("meshes/024_bowl/bowl.sdf","bowl_link",RigidTransform(RollPitchYaw([0, 0, 0]), [0.5, 0.5, 0]))
+    sim.add_mesh("meshes/025_mug/mug.sdf","mug_link",RigidTransform(RollPitchYaw([0, 0, 0]), [0.55, 0.55, 0]))
+    sim.add_mesh("meshes/026_sponge/sponge.sdf","sponge_link",RigidTransform(RollPitchYaw([0, 0, 0]), [1, 0, 0]))
+    sim.add_mesh("meshes/028_skillet_lid/skillet_lid.sdf","skillet_lid_link",RigidTransform(RollPitchYaw([0, 0, 0]), [0.5, 0.8, 0]))
+    sim.add_mesh("meshes/029_plate/plate.sdf","plate_link",RigidTransform(RollPitchYaw([0, 0, 1.3]), [0.6, 0.3, 0]))
+    sim.add_mesh("meshes/030_fork/fork.sdf","fork_link",RigidTransform(RollPitchYaw([0, 0.2, 0.57]), [0.65, 0.4, 0]))
+    sim.add_mesh("meshes/031_spoon/spoon.sdf","spoon_link",RigidTransform(RollPitchYaw([0, 0, 0]), [0.65, 0.45, 0]))
+    sim.add_mesh("meshes/032_knife/knife.sdf","knife_link",RigidTransform(RollPitchYaw([0, 0, -0.57]), [0.7, 0.5, 0]))
+    sim.add_mesh("meshes/033_spatula/spatula.sdf","spatula_link",RigidTransform(RollPitchYaw([0, 0, -1.5]), [0.9, 0.5, 0]))
+
     sim.plant_finalize()
 
     # Add in sensors and controller
