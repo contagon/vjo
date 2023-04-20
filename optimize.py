@@ -67,6 +67,7 @@ def optimize(args):
         for f in os.listdir(args.data_folder)
         if os.path.isfile(os.path.join(args.data_folder, f))
     ]
+    files_camera = sorted(files_camera)
 
     # ------------------------- Run factor graph ------------------------- #
 
@@ -75,8 +76,9 @@ def optimize(args):
 
     for i in range(N):
         # Get SE3 estimate and propagated covariance
-        fk_est = arm.fk(joints[i, 1:8])
-        fk_propagated_cov = arm.fk_prop_cov(joints[i, 1:8], cov)
+        joint_configuration = joints[i, 2:9]
+        fk_est = arm.fk(joint_configuration)
+        fk_propagated_cov = arm.fk_prop_cov(joint_configuration, cov)
 
         # Add factor to graph
         prior = gtsam.PriorFactorPose3(
@@ -94,12 +96,14 @@ def optimize(args):
     NOT_MATCHED = -1
     prev_keypoint_indices = [NOT_MATCHED for prev_keypoint in prev_keypoints]
     keypoint_count = 0
-    fx = 1.0
-    fy = 1.0
-    s = 0.0
-    u0 = 0.0
-    v0 = 0.0
-    calibration = gtsam.Cal3_S2(fx, fy, s, u0, v0)
+    intrinsics_matrix = np.loadtxt("intrinsics.txt")
+    calibration = gtsam.Cal3_S2(
+        intrinsics_matrix[0, 0],
+        intrinsics_matrix[1, 1],
+        intrinsics_matrix[0, 1],
+        intrinsics_matrix[0, -1],
+        intrinsics_matrix[1, 1],
+    )
     camera_cov = np.diag([0.1, 0.1])
     camera_noise = gtsam.noiseModel.Gaussian.Covariance(camera_cov)
 
@@ -107,17 +111,22 @@ def optimize(args):
         new_image = cv2.imread(camera_file)
         new_keypoints, new_descriptors = orb.detectAndCompute(new_image, None)
         matches = matcher.match(prev_descriptors, new_descriptors)
+        outImg = cv2.drawMatches(
+            prev_image, prev_keypoints, new_image, new_keypoints, matches, None
+        )
+        cv2.imshow("matches", outImg)
+        cv2.waitKey(0)
         matches = sorted(matches, key=lambda match: match.distance)
         new_keypoint_indices = [NOT_MATCHED for keypoint in new_keypoints]
+        poses = gtsam.Pose3Vector()
+        poses.append(theta.atPose3(X(i - 1)).inverse())
+        poses.append(theta.atPose3(X(i)).inverse())
         for match in matches[:10]:
-            prev_index = match.trainIdx
-            new_index = match.queryIdx
+            prev_index = match.queryIdx
+            new_index = match.trainIdx
             if prev_keypoint_indices[prev_index] == NOT_MATCHED:
                 prev_keypoint_indices[prev_index] = keypoint_count
                 keypoint_count += 1
-                poses = gtsam.Pose3Vector()
-                poses.append(theta.atPose3(X(i - 1)))
-                poses.append(theta.atPose3(X(i)))
                 measurements = gtsam.Point2Vector()
                 measurements.append(np.array(prev_keypoints[prev_index].pt))
                 measurements.append(np.array(new_keypoints[prev_index].pt))
@@ -129,16 +138,11 @@ def optimize(args):
                     calibration,
                 )
                 graph.push_back(prev_factor)
-                theta.insert(
-                    L(prev_keypoint_indices[prev_index]),
-                    gtsam.triangulatePoint3(
-                        poses,
-                        calibration,
-                        measurements,
-                        rank_tol=1e-5,
-                        optimize=True,
-                    ),
+                triangulatedPoint3 = gtsam.triangulatePoint3(
+                    poses, calibration, measurements, rank_tol=1e-5, optimize=True
                 )
+                print(triangulatedPoint3)
+                theta.insert(L(prev_keypoint_indices[prev_index]), triangulatedPoint3)
             new_keypoint_indices[new_index] = prev_keypoint_indices[prev_index]
             factor = gtsam.GenericProjectionFactorCal3_S2(
                 np.array(new_keypoints[new_keypoint_indices[new_index]].pt),
@@ -148,12 +152,15 @@ def optimize(args):
                 calibration,
             )
             graph.push_back(factor)
-            prev_keypoints = new_keypoints
-            prev_descriptors = new_descriptors
-            prev_keypoint_indices = new_keypoint_indices
 
-        optimizer = gtsam.LevenbergMarquardtOptimizer(graph, theta)
-        solution = optimizer.optimize()
+        prev_keypoints = new_keypoints
+        prev_descriptors = new_descriptors
+        prev_keypoint_indices = new_keypoint_indices
+
+        prev_image = new_image
+
+    optimizer = gtsam.LevenbergMarquardtOptimizer(graph, theta)
+    solution = optimizer.optimize()
 
 
 if __name__ == "__main__":

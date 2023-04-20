@@ -182,13 +182,13 @@ class ArmSim:
             fov_y (float, optional): Field of view for x/y directions.
                 Defaults to np.pi/4.
             offset (RigidTransform, optional): Offset from the last end effector link.
-                Defaults to x=0.1, 90 degree yaw.
+                Defaults to x=0.1.
 
         Returns:
             np.ndarray: _description_
         """
         if offset is None:
-            offset = RigidTransform(RollPitchYaw([0, 0, np.pi / 2]), [0, 0, 0.1])
+            offset = RigidTransform(RollPitchYaw([0, 0, 0]), [0, 0, 0.1])
 
         # Make renderer for cameras
         renderer_name = "renderer"
@@ -220,6 +220,7 @@ class ArmSim:
             color_camera=color_camera,
             depth_camera=depth_camera,
         )
+        np.savetxt("intrinsics.txt", intrinsics.intrinsic_matrix())
 
         # Connect with outputs
         self.builder.AddSystem(self.camera)
@@ -338,6 +339,8 @@ class ArmSim:
         self.diagram.get_input_port(0).FixValue(self.context, qd)
 
         self.simulator.AdvanceTo(time + self.time_step)
+
+        self.context.l
 
         # Get image if cammera has been added
         if self.camera is not None:
@@ -520,4 +523,4 @@ if __name__ == "__main__":
             line = ",".join([str(i), str(time)])
             line += "," + ",".join(plant_state[:7].astype(str))
             state_file.write(line)
-            cv2.imwrite(str(os.path.join(dirname, "image" + str(i) + ".png")), image)
+            cv2.imwrite(str(os.path.join(dirname, f"image{i:02d}.png")), image)
