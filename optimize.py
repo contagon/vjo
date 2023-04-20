@@ -41,7 +41,7 @@ def optimize(args):
             [0, 0, dbs + dse],
             [0, 0, dbs + dse],
             [0, 0, dbs + dse + dew],
-            [0, 0, dbs + dse + dew + dwf],
+            [0, 0, dbs + dse + dew + dwf + 0.1],
         ]
     )
 
