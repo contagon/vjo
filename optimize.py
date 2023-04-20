@@ -5,7 +5,7 @@ import cv2
 import gtsam
 import numpy as np
 import pandas as pd
-from gtsam.symbol_shorthand import X
+from gtsam.symbol_shorthand import X, L
 
 from fk import ArmSE3
 
@@ -63,7 +63,7 @@ def optimize(args):
     N = joints.shape[0]
 
     files_camera = [
-        f
+        os.path.join(args.data_folder, f)
         for f in os.listdir(args.data_folder)
         if os.path.isfile(os.path.join(args.data_folder, f))
     ]
@@ -75,15 +75,17 @@ def optimize(args):
 
     for i in range(N):
         # Get SE3 estimate and propagated covariance
-        fk_est = arm.fk(joints[i, 1:9])
-        fk_propagated_cov = arm.fk_prop_cov(joints[i], cov)
+        fk_est = arm.fk(joints[i, 1:8])
+        fk_propagated_cov = arm.fk_prop_cov(joints[i, 1:8], cov)
 
         # Add factor to graph
         prior = gtsam.PriorFactorPose3(
-            X(i), fk_est, gtsam.noiseModel.Gaussian.Covariance(fk_propagated_cov)
+            X(i),
+            gtsam.gtsam.Pose3(fk_est),
+            gtsam.noiseModel.Gaussian.Covariance(fk_propagated_cov),
         )
         graph.push_back(prior)
-        theta.insert(X(i), fk_est)
+        theta.insert(X(i), gtsam.gtsam.Pose3(fk_est))
 
     orb = cv2.ORB_create()
     matcher = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
@@ -101,20 +103,26 @@ def optimize(args):
     camera_cov = np.diag([0.1, 0.1])
     camera_noise = gtsam.noiseModel.Gaussian.Covariance(camera_cov)
 
-    for i, camera_file in enumerate(files_camera[1:]):
+    for i, camera_file in enumerate(files_camera[1:], start=1):
         new_image = cv2.imread(camera_file)
         new_keypoints, new_descriptors = orb.detectAndCompute(new_image, None)
-        matches = matcher.match(prev_keypoints, new_keypoints)
-        matches = sorted(matches, lambda match: match.distance)
-        new_keypoint_indices = [NOT_MATCHED for match in matches]
+        matches = matcher.match(prev_descriptors, new_descriptors)
+        matches = sorted(matches, key=lambda match: match.distance)
+        new_keypoint_indices = [NOT_MATCHED for keypoint in new_keypoints]
         for match in matches[:10]:
             prev_index = match.trainIdx
             new_index = match.queryIdx
             if prev_keypoint_indices[prev_index] == NOT_MATCHED:
                 prev_keypoint_indices[prev_index] = keypoint_count
                 keypoint_count += 1
+                poses = gtsam.Pose3Vector()
+                poses.append(theta.atPose3(X(i - 1)))
+                poses.append(theta.atPose3(X(i)))
+                measurements = gtsam.Point2Vector()
+                measurements.append(np.array(prev_keypoints[prev_index].pt))
+                measurements.append(np.array(new_keypoints[prev_index].pt))
                 prev_factor = gtsam.GenericProjectionFactorCal3_S2(
-                    prev_keypoints[prev_index],
+                    measurements[0],
                     camera_noise,
                     X(i - 1),
                     L(prev_keypoint_indices[prev_index]),
@@ -124,14 +132,16 @@ def optimize(args):
                 theta.insert(
                     L(prev_keypoint_indices[prev_index]),
                     gtsam.triangulatePoint3(
-                        [theta.atPose3(X(i - 1)), theta.atPose3(X(i))],
+                        poses,
                         calibration,
-                        measuments,
+                        measurements,
+                        rank_tol=1e-5,
+                        optimize=True,
                     ),
                 )
             new_keypoint_indices[new_index] = prev_keypoint_indices[prev_index]
             factor = gtsam.GenericProjectionFactorCal3_S2(
-                new_keypoint_indices[new_index],
+                np.array(new_keypoints[new_keypoint_indices[new_index]].pt),
                 camera_noise,
                 X(i),
                 L(new_keypoint_indices[new_index]),
