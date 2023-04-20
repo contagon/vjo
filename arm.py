@@ -340,8 +340,6 @@ class ArmSim:
 
         self.simulator.AdvanceTo(time + self.time_step)
 
-        self.context.l
-
         # Get image if cammera has been added
         if self.camera is not None:
             image = (

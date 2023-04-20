@@ -119,8 +119,9 @@ def optimize(args):
         matches = sorted(matches, key=lambda match: match.distance)
         new_keypoint_indices = [NOT_MATCHED for keypoint in new_keypoints]
         poses = gtsam.Pose3Vector()
-        poses.append(theta.atPose3(X(i - 1)).inverse())
-        poses.append(theta.atPose3(X(i)).inverse())
+        poses.append(theta.atPose3(X(i - 1)))
+        poses.append(theta.atPose3(X(i)))
+        print(poses)
         for match in matches[:10]:
             prev_index = match.queryIdx
             new_index = match.trainIdx
@@ -138,6 +139,7 @@ def optimize(args):
                     calibration,
                 )
                 graph.push_back(prev_factor)
+                print(measurements)
                 triangulatedPoint3 = gtsam.triangulatePoint3(
                     poses, calibration, measurements, rank_tol=1e-5, optimize=True
                 )
