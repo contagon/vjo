@@ -125,13 +125,12 @@ def optimize(args):
             ]
         )
 
-        num_matches = 10
         outImg = cv2.drawMatches(
             prev_image,
             prev_keypoints,
             new_image,
             new_keypoints,
-            matches[:num_matches],
+            matches,
             None,
         )
         cv2.imshow("matches", outImg)
@@ -197,11 +196,12 @@ def optimize(args):
         for k in range(N):
             pose = solution.atPose3(X(k))
             pose: gtsam.Pose3
+            flattened_pose = np.ravel(pose.matrix())[:12]
             save_file.write("\n")
-            for value in np.ravel(pose.matrix())[:11]:
+            for value in flattened_pose[:-1]:
                 save_file.write(str(value))
                 save_file.write(",")
-            save_file.write(str(np.ravel(pose.matrix())[11]))
+            save_file.write(str(flattened_pose[11]))
 
 
 if __name__ == "__main__":
