@@ -39,6 +39,7 @@ def optimize(args):
     graph = gtsam.NonlinearFactorGraph()
     theta = gtsam.Values()
 
+    # Add in joint priors
     for i in range(N):
         # Get SE3 estimate and propagated covariance
         joint_configuration = joints[i, 2:9]
@@ -75,6 +76,7 @@ def optimize(args):
         gtsam.noiseModel.mEstimator.Huber.Create(1.345), camera_noise
     )
 
+    # Iterate through images
     for i, camera_file in enumerate(files_camera[1:], start=1):
         new_image = cv2.imread(camera_file)
         new_keypoints, new_descriptors = orb.detectAndCompute(new_image, None)
@@ -88,6 +90,22 @@ def optimize(args):
             ]
         )
 
+        # Run RANSAC
+        prev_matched_keypoints = np.array(
+            [prev_keypoints[m.queryIdx].pt for m in matches]
+        )
+        new_matched_keypoints = np.array(
+            [new_keypoints[m.trainIdx].pt for m in matches]
+        )
+        E, inliers = cv2.findEssentialMat(
+            prev_matched_keypoints,
+            new_matched_keypoints,
+            intrinsics_matrix,
+            method=cv2.RANSAC,
+            threshold=1,
+            prob=0.999,
+        )
+        matches = [m for i, m in enumerate(matches) if inliers[i] == 1]
         outImg = cv2.drawMatches(
             prev_image,
             prev_keypoints,
@@ -107,41 +125,40 @@ def optimize(args):
         for match in matches:
             prev_index = match.queryIdx
             new_index = match.trainIdx
-            try:
-                if prev_keypoint_indices[prev_index] == NOT_MATCHED:
-                    measurements = gtsam.Point2Vector(
-                        [prev_keypoints[prev_index].pt, new_keypoints[new_index].pt]
-                    )
+            if prev_keypoint_indices[prev_index] == NOT_MATCHED:
+                measurements = gtsam.Point2Vector(
+                    [prev_keypoints[prev_index].pt, new_keypoints[new_index].pt]
+                )
+                try:
                     triangulatedPoint3 = gtsam.triangulatePoint3(
                         poses, calibration, measurements, rank_tol=1e-5, optimize=True
                     )
-                    prev_keypoint_indices[prev_index] = keypoint_count
-                    keypoint_count += 1
+                except Exception:
+                    print("Cheirality: point not added")
+                    continue
+                prev_keypoint_indices[prev_index] = keypoint_count
+                keypoint_count += 1
 
-                    prev_factor = gtsam.GenericProjectionFactorCal3_S2(
-                        measurements[0],
-                        robust_noise,
-                        X(i - 1),
-                        L(prev_keypoint_indices[prev_index]),
-                        calibration,
-                    )
-                    graph.push_back(prev_factor)
-                    plot.plot_point3_on_axes(axes, triangulatedPoint3, "o")
-                    theta.insert(
-                        L(prev_keypoint_indices[prev_index]), triangulatedPoint3
-                    )
-
-                new_keypoint_indices[new_index] = prev_keypoint_indices[prev_index]
-                factor = gtsam.GenericProjectionFactorCal3_S2(
-                    np.array(new_keypoints[new_index].pt),
+                prev_factor = gtsam.GenericProjectionFactorCal3_S2(
+                    measurements[0],
                     robust_noise,
-                    X(i),
-                    L(new_keypoint_indices[new_index]),
+                    X(i - 1),
+                    L(prev_keypoint_indices[prev_index]),
                     calibration,
                 )
-                graph.push_back(factor)
-            except Exception:
-                print("Cheirality: point not added")
+                graph.push_back(prev_factor)
+                plot.plot_point3_on_axes(axes, triangulatedPoint3, "o")
+                theta.insert(L(prev_keypoint_indices[prev_index]), triangulatedPoint3)
+
+            new_keypoint_indices[new_index] = prev_keypoint_indices[prev_index]
+            factor = gtsam.GenericProjectionFactorCal3_S2(
+                np.array(new_keypoints[new_index].pt),
+                robust_noise,
+                X(i),
+                L(new_keypoint_indices[new_index]),
+                calibration,
+            )
+            graph.push_back(factor)
 
         prev_keypoints = new_keypoints
         prev_descriptors = new_descriptors
