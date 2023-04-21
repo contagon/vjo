@@ -9,56 +9,19 @@ import pandas as pd
 from gtsam.symbol_shorthand import L, X
 from gtsam.utils import plot
 
-from fk import ArmSE3
+from vjo.fk import iiwa7
 
 
 def optimize(args):
     # ------------------------- Setup arm ------------------------- #
     # Setup robot arm
-    M = 7
-
-    dbs = 0.340
-    dse = 0.400
-    dew = 0.400
-    dwf = 0.126
-
-    zero = np.eye(4)
-    zero[:3, 3] = [0, 0, dbs + dse + dew + dwf]
-    w = np.array(
-        [
-            [0, 0, 1],
-            [0, 1, 0],
-            [0, 0, 1],
-            [0, -1, 0],
-            [0, 0, 1],
-            [0, 1, 0],
-            [0, 0, 1],
-        ]
-    )
-    p = np.array(
-        [
-            [0, 0, 0],
-            [0, 0, dbs],
-            [0, 0, dbs],
-            [0, 0, dbs + dse],
-            [0, 0, dbs + dse],
-            [0, 0, dbs + dse + dew],
-            [0, 0, dbs + dse + dew + dwf + 0.1],
-        ]
-    )
-
-    screws = np.zeros((M, 6))
-    screws[:, :3] = w
-    for i in range(M):
-        screws[i, 3:] = -np.cross(w[i], p[i])
-
-    arm = ArmSE3(screws, zero)
+    arm = iiwa7()
 
     # ------------------------- Load data ------------------------- #
     file_joints = os.path.join(args.data_folder, "joints.csv")
 
     # TODO: Save joint covariance at top of file?
-    cov = np.ones(M)
+    cov = np.ones(arm.N)
 
     data = pd.read_csv(file_joints)
     joints = data.to_numpy()
@@ -177,7 +140,7 @@ def optimize(args):
                     calibration,
                 )
                 graph.push_back(factor)
-            except:
+            except Exception:
                 print("Cheirality: point not added")
 
         prev_keypoints = new_keypoints

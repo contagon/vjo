@@ -1,10 +1,6 @@
-# Import some basic libraries and functions for this tutorial.
-import datetime
-import os
 import time
 from typing import Optional, Tuple, Union
 
-import cv2
 import numpy as np
 import pydot
 from pydrake.geometry import MeshcatVisualizer, MeshcatVisualizerParams, StartMeshcat
@@ -31,8 +27,6 @@ from utils import AddMultibodyTriad
 TODO LIST
 
 Functionality:
-- Figure out how to pull joint data
-- Make camera scene more interesting
 - Probably need to make more interesting trajectories
 
 Code Quality:
@@ -148,23 +142,10 @@ class ArmSim:
             frame_name (str): Name of frame to weld to world origin.
             offset (RigidTransform): Offset from world origin to put it in.
         """
-        sim.parser.AddModels(model)
+        self.parser.AddModels(model)
         self.plant.WeldFrames(
             self.plant.world_frame(), self.plant.GetFrameByName(frame_name), offset
         )
-
-    def add_mesh1(self, model: str) -> None:
-        """Add another welded mesh to the simulation.
-
-        Args:
-            model (str): SDF file location.
-            frame_name (str): Name of frame to weld to world origin.
-            offset (RigidTransform): Offset from world origin to put it in.
-        """
-        sim.parser.AddModels(model)
-        # self.plant.WeldFrames(
-        #     self.plant.world_frame(), self.plant.GetFrameByName(frame_name), offset
-        # )
 
     def add_camera(
         self,
@@ -172,6 +153,7 @@ class ArmSim:
         height: int = 480,
         fov_y: float = np.pi / 4,
         offset: Optional[RigidTransform] = None,
+        show=True,
     ) -> np.ndarray:
         """Add a camera to the simulation
 
@@ -196,7 +178,6 @@ class ArmSim:
         )
 
         # Add in sensors
-        # TODO: Customize this a bit more?
         # https://drake.mit.edu/doxygen_cxx/classdrake_1_1systems_1_1sensors_1_1_camera_info.html
         intrinsics = CameraInfo(
             width=width,
@@ -209,7 +190,7 @@ class ArmSim:
             ClippingRange(0.01, 10.0),
             RigidTransform(),
         )
-        color_camera = ColorRenderCamera(core, show_window=True)
+        color_camera = ColorRenderCamera(core, show_window=show)
         depth_camera = DepthRenderCamera(core, DepthRange(0.01, 10.0))
         L7 = self.plant.GetFrameByName(self.link_names(7))
         # Make camera
@@ -352,177 +333,3 @@ class ArmSim:
             plant_state = None
 
         return time, image, plant_state
-
-
-if __name__ == "__main__":
-    # ------------------------- Set up simulation ------------------------- #
-    # Setup simulation environment
-    sim = ArmSim(viz=True, time_step=1)
-    # Setup everything in environment
-    sim.add_arm()
-
-    # Add sdf files
-    sim.add_mesh(
-        "meshes/table.sdf",
-        "table_link",
-        RigidTransform(RollPitchYaw([0, 0, 0]), [0, 0, -0.05]),
-    )
-    # sim.add_mesh(
-    #     "meshes/001_chips_can/chips_can.sdf",
-    #     "chips_can_link",
-    #     RigidTransform(RollPitchYaw([0, 0, 0]), [0, 1, 0]),
-    # )
-    sim.add_mesh(
-        "meshes/002_master_chef_can/master_chef_can.sdf",
-        "master_chef_can_link",
-        RigidTransform(RollPitchYaw([0, 0, 0]), [0.1, 1.05, 0]),
-    )
-    sim.add_mesh(
-        "meshes/003_cracker_box/cracker_box.sdf",
-        "cracker_box_link",
-        RigidTransform(RollPitchYaw([0, 0, 1.47]), [0.1, 1.15, 0]),
-    )
-    sim.add_mesh(
-        "meshes/004_sugar_box/sugar_box.sdf",
-        "sugar_box_link",
-        RigidTransform(RollPitchYaw([0, 0, 1.57]), [0.25, 1.15, 0]),
-    )
-    sim.add_mesh(
-        "meshes/005_tomato_soup_can/tomato_soup_can.sdf",
-        "tomato_soup_can_link",
-        RigidTransform(RollPitchYaw([0, 0, 0]), [0.3, 0.9, 0]),
-    )
-    sim.add_mesh(
-        "meshes/006_mustard_bottle/mustard_bottle.sdf",
-        "mustard_bottle_link",
-        RigidTransform(RollPitchYaw([0, 0, 0]), [0.3, 1, 0]),
-    )
-    sim.add_mesh(
-        "meshes/007_tuna_fish_can/tuna_fish_can.sdf",
-        "tuna_fish_can_link",
-        RigidTransform(RollPitchYaw([0, 0, 0]), [0.2, 1, 0]),
-    )
-    sim.add_mesh(
-        "meshes/008_pudding_box/pudding_box.sdf",
-        "pudding_box_link",
-        RigidTransform(RollPitchYaw([0, 0, 0]), [-0.1, 0.9, 0]),
-    )
-
-    sim.add_mesh(
-        "meshes/011_banana/banana.sdf",
-        "banana_link",
-        RigidTransform(RollPitchYaw([0, 0, 0]), [0.5, -0.5, 0]),
-    )
-    sim.add_mesh(
-        "meshes/012_strawberry/strawberry.sdf",
-        "strawberry_link",
-        RigidTransform(RollPitchYaw([0, 0, 0]), [0.55, -0.5, 0]),
-    )
-    sim.add_mesh(
-        "meshes/013_apple/apple.sdf",
-        "apple_link",
-        RigidTransform(RollPitchYaw([0, 0, 0]), [0.6, -0.55, 0]),
-    )
-    sim.add_mesh(
-        "meshes/014_lemon/lemon.sdf",
-        "lemon_link",
-        RigidTransform(RollPitchYaw([0, 0, 0]), [0.7, -0.5, 0]),
-    )
-    sim.add_mesh(
-        "meshes/015_peach/peach.sdf",
-        "peach_link",
-        RigidTransform(RollPitchYaw([0, 0, 0]), [0.7, -0.6, 0]),
-    )
-    sim.add_mesh(
-        "meshes/016_pear/pear.sdf",
-        "pear_link",
-        RigidTransform(RollPitchYaw([0, 0, 0.3]), [0.45, -0.7, 0]),
-    )
-    sim.add_mesh(
-        "meshes/017_orange/orange.sdf",
-        "orange_link",
-        RigidTransform(RollPitchYaw([0, 0, 0]), [0.5, -0.7, 0]),
-    )
-    sim.add_mesh(
-        "meshes/018_plum/plum.sdf",
-        "plum_link",
-        RigidTransform(RollPitchYaw([0, 0, 0]), [0.55, -0.3, 0]),
-    )
-
-    sim.add_mesh(
-        "meshes/024_bowl/bowl.sdf",
-        "bowl_link",
-        RigidTransform(RollPitchYaw([0, 0, 0]), [0.5, 0.5, 0]),
-    )
-    sim.add_mesh(
-        "meshes/025_mug/mug.sdf",
-        "mug_link",
-        RigidTransform(RollPitchYaw([0, 0, 0]), [0.55, 0.55, 0]),
-    )
-    sim.add_mesh(
-        "meshes/026_sponge/sponge.sdf",
-        "sponge_link",
-        RigidTransform(RollPitchYaw([0, 0, 0]), [1, 0, 0]),
-    )
-    sim.add_mesh(
-        "meshes/028_skillet_lid/skillet_lid.sdf",
-        "skillet_lid_link",
-        RigidTransform(RollPitchYaw([0, 0, 0]), [0.5, 0.8, 0]),
-    )
-    sim.add_mesh(
-        "meshes/029_plate/plate.sdf",
-        "plate_link",
-        RigidTransform(RollPitchYaw([0, 0, 1.3]), [0.6, 0.3, 0]),
-    )
-    sim.add_mesh(
-        "meshes/030_fork/fork.sdf",
-        "fork_link",
-        RigidTransform(RollPitchYaw([0, 0.2, 0.57]), [0.65, 0.4, 0]),
-    )
-    sim.add_mesh(
-        "meshes/031_spoon/spoon.sdf",
-        "spoon_link",
-        RigidTransform(RollPitchYaw([0, 0, 0]), [0.65, 0.45, 0]),
-    )
-    sim.add_mesh(
-        "meshes/032_knife/knife.sdf",
-        "knife_link",
-        RigidTransform(RollPitchYaw([0, 0, -0.57]), [0.7, 0.5, 0]),
-    )
-    sim.add_mesh(
-        "meshes/033_spatula/spatula.sdf",
-        "spatula_link",
-        RigidTransform(RollPitchYaw([0, 0, -1.5]), [0.9, 0.5, 0]),
-    )
-
-    sim.plant_finalize()
-
-    # Add in sensors and controller
-    sim.add_controller()
-    sim.add_camera()
-    # Visualizer end effector pose
-    sim.add_frame(7)
-
-    # Get sim ready
-    N = 10
-    q0 = np.array([np.pi / 2 + 0.1, 0, 0, -np.pi / 2.0, 0, np.pi / 4, -np.pi / 2])
-    sim.sim_setup(q0, wait_load=3)
-
-    # ------------------------- Run simulation ------------------------- #
-    # Run simulation
-    qd = np.array([0.0, 0, 0, -np.pi / 2.0, 0, np.pi / 4, -np.pi / 2])
-    joint0 = np.linspace(np.pi / 2.0, 0, N)
-    dirname = datetime.datetime.now().strftime("%Y.%m.%d_%H.%M.%S")
-    os.mkdir(dirname)
-    with open(os.path.join(dirname, "joints.csv"), "w") as state_file:
-        state_file.write(
-            "index,time,joint0,joint1,joint2,joint3,joint4,joint5,joint6,joint7"
-        )
-        for i in range(N):
-            qd[0] = joint0[i]
-            t, image, plant_state = sim.step(qd=qd)
-            state_file.write("\n")
-            line = ",".join([str(i), str(t)])
-            line += "," + ",".join(plant_state[:7].astype(str))
-            state_file.write(line)
-            cv2.imwrite(str(os.path.join(dirname, f"image{i:03d}.png")), image)

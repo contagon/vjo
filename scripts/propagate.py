@@ -1,7 +1,10 @@
+import sys
+
 import matplotlib.pyplot as plt
 import numpy as np
 
-from arm import ArmSE3
+sys.path.append("../vjo")
+from vjo.fk import ArmFK  # noqa E402
 
 
 def plot_arm(theta, l, ax):  # noqa
@@ -35,7 +38,7 @@ for i in range(2):
     screws[i, 3:] = -np.cross(w[i], p[i])
     screws[i, :3] = w[i]
 
-arm = ArmSE3(screws, zero)
+arm = ArmFK(screws, zero)
 
 
 # ------------ Propagate particles through distribution ------------ #

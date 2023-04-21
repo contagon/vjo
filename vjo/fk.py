@@ -9,7 +9,7 @@ TODO:
 """
 
 
-class ArmSE3:
+class ArmFK:
     """
     ANGLES BEFORE POSITION in all algebra representations,
     including screws, adjoint, skew, etc
@@ -104,3 +104,44 @@ class ArmSE3:
             cov += np.outer(xi, xi) * var[i]
 
         return cov
+
+
+def iiwa7():
+    M = 7
+
+    dbs = 0.340
+    dse = 0.400
+    dew = 0.400
+    dwf = 0.126
+
+    zero = np.eye(4)
+    zero[:3, 3] = [0, 0, dbs + dse + dew + dwf]
+    w = np.array(
+        [
+            [0, 0, 1],
+            [0, 1, 0],
+            [0, 0, 1],
+            [0, -1, 0],
+            [0, 0, 1],
+            [0, 1, 0],
+            [0, 0, 1],
+        ]
+    )
+    p = np.array(
+        [
+            [0, 0, 0],
+            [0, 0, dbs],
+            [0, 0, dbs],
+            [0, 0, dbs + dse],
+            [0, 0, dbs + dse],
+            [0, 0, dbs + dse + dew],
+            [0, 0, dbs + dse + dew + dwf + 0.1],
+        ]
+    )
+
+    screws = np.zeros((M, 6))
+    screws[:, :3] = w
+    for i in range(M):
+        screws[i, 3:] = -np.cross(w[i], p[i])
+
+    return ArmFK(screws, zero)
