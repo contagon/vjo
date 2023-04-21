@@ -37,17 +37,7 @@
             <uri>tsdf/textured.obj</uri>
 	        </mesh>
         </geometry>
-        <material>
-          <script>
-            <uri>chips_can.material</uri>
-            <name>chips_can</name>
-          </script>
-          <!-- <pbr>
-            <metal>
-              <albedo_map>tsdf/textured.png</albedo_map>
-            </metal>
-          </pbr> -->
-        </material>
+        
       </visual>
     </link>
   </model>

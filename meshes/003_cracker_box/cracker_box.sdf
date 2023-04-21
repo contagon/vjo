@@ -37,12 +37,6 @@
             <uri>google_16k/textured.obj</uri>
 	        </mesh>
         </geometry>
-        <material>
-          <script>
-            <uri>cracker_box.material</uri>
-            <name>cracker_box</name>
-          </script>
-        </material>
       </visual>
     </link>
   </model>

@@ -37,12 +37,7 @@
             <uri>google_16k/textured.obj</uri>
 	        </mesh>
         </geometry>
-        <material>
-          <script>
-            <uri>spoon.material</uri>
-            <name>spoon</name>
-          </script>
-        </material>
+        
       </visual>
     </link>
   </model>

@@ -37,12 +37,7 @@
             <uri>google_16k/textured.obj</uri>
 	        </mesh>
         </geometry>
-        <material>
-          <script>
-            <uri>tuna_fish_can.material</uri>
-            <name>tuna_fish_can</name>
-          </script>
-        </material>
+        
       </visual>
     </link>
   </model>

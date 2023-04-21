@@ -37,12 +37,7 @@
             <uri>google_16k/textured.obj</uri>
 	        </mesh>
         </geometry>
-        <material>
-          <script>
-            <uri>orange.material</uri>
-            <name>orange</name>
-          </script>
-        </material>
+        
       </visual>
     </link>
   </model>

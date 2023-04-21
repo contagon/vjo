@@ -37,12 +37,7 @@
             <uri>google_16k/textured.obj</uri>
 	        </mesh>
         </geometry>
-        <material>
-          <script>
-            <uri>mustard_bottle.material</uri>
-            <name>mustard_bottle</name>
-          </script>
-        </material>
+        
       </visual>
     </link>
   </model>

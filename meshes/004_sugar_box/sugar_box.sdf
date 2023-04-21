@@ -37,12 +37,7 @@
             <uri>google_16k/textured.obj</uri>
 	        </mesh>
         </geometry>
-        <material>
-          <script>
-            <uri>sugar_box.material</uri>
-            <name>sugar_box</name>
-          </script>
-        </material>
+        
       </visual>
     </link>
   </model>

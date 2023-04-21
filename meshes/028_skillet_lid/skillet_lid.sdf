@@ -37,12 +37,7 @@
             <uri>google_16k/textured.obj</uri>
 	        </mesh>
         </geometry>
-        <material>
-          <script>
-            <uri>skillet_lid.material</uri>
-            <name>skillet_lid</name>
-          </script>
-        </material>
+        
       </visual>
     </link>
   </model>

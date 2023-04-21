@@ -37,12 +37,7 @@
             <uri>google_16k/textured.obj</uri>
 	        </mesh>
         </geometry>
-        <material>
-          <script>
-            <uri>fork.material</uri>
-            <name>fork</name>
-          </script>
-        </material>
+        
       </visual>
     </link>
   </model>
