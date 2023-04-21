@@ -108,6 +108,9 @@ def optimize(args):
     )
     camera_cov = np.diag([0.1, 0.1])
     camera_noise = gtsam.noiseModel.Gaussian.Covariance(camera_cov)
+    robust_noise = gtsam.noiseModel.Robust.Create(
+        gtsam.noiseModel.mEstimator.Huber.Create(1.345), camera_noise
+    )
 
     for i, camera_file in enumerate(files_camera[1:], start=1):
         new_image = cv2.imread(camera_file)
@@ -139,40 +142,44 @@ def optimize(args):
         plot.plot_pose3_on_axes(axes, poses[0])
         plot.plot_pose3_on_axes(axes, poses[1])
 
-        for match in matches[:num_matches]:
+        for match in matches:
             prev_index = match.queryIdx
             new_index = match.trainIdx
-            if prev_keypoint_indices[prev_index] == NOT_MATCHED:
-                prev_keypoint_indices[prev_index] = keypoint_count
-                keypoint_count += 1
-                measurements = gtsam.Point2Vector(
-                    [prev_keypoints[prev_index].pt, new_keypoints[new_index].pt]
-                )
+            try:
+                if prev_keypoint_indices[prev_index] == NOT_MATCHED:
+                    measurements = gtsam.Point2Vector(
+                        [prev_keypoints[prev_index].pt, new_keypoints[new_index].pt]
+                    )
+                    triangulatedPoint3 = gtsam.triangulatePoint3(
+                        poses, calibration, measurements, rank_tol=1e-5, optimize=True
+                    )
+                    prev_keypoint_indices[prev_index] = keypoint_count
+                    keypoint_count += 1
 
-                prev_factor = gtsam.GenericProjectionFactorCal3_S2(
-                    measurements[0],
-                    camera_noise,
-                    X(i - 1),
-                    L(prev_keypoint_indices[prev_index]),
+                    prev_factor = gtsam.GenericProjectionFactorCal3_S2(
+                        measurements[0],
+                        robust_noise,
+                        X(i - 1),
+                        L(prev_keypoint_indices[prev_index]),
+                        calibration,
+                    )
+                    graph.push_back(prev_factor)
+                    plot.plot_point3_on_axes(axes, triangulatedPoint3, "o")
+                    theta.insert(
+                        L(prev_keypoint_indices[prev_index]), triangulatedPoint3
+                    )
+
+                new_keypoint_indices[new_index] = prev_keypoint_indices[prev_index]
+                factor = gtsam.GenericProjectionFactorCal3_S2(
+                    np.array(new_keypoints[new_index].pt),
+                    robust_noise,
+                    X(i),
+                    L(new_keypoint_indices[new_index]),
                     calibration,
                 )
-                graph.push_back(prev_factor)
-
-                triangulatedPoint3 = gtsam.triangulatePoint3(
-                    poses, calibration, measurements, rank_tol=1e-5, optimize=True
-                )
-                plot.plot_point3_on_axes(axes, triangulatedPoint3, "o")
-                theta.insert(L(prev_keypoint_indices[prev_index]), triangulatedPoint3)
-
-            new_keypoint_indices[new_index] = prev_keypoint_indices[prev_index]
-            factor = gtsam.GenericProjectionFactorCal3_S2(
-                np.array(new_keypoints[new_index].pt),
-                camera_noise,
-                X(i),
-                L(new_keypoint_indices[new_index]),
-                calibration,
-            )
-            graph.push_back(factor)
+                graph.push_back(factor)
+            except:
+                print("Cheirality: point not added")
 
         prev_keypoints = new_keypoints
         prev_descriptors = new_descriptors
@@ -184,7 +191,17 @@ def optimize(args):
         plt.show()
 
     optimizer = gtsam.LevenbergMarquardtOptimizer(graph, theta)
-    optimizer.optimize()
+    solution = optimizer.optimize()
+    with open(os.path.join(args.data_folder, "odometry.csv"), "w") as save_file:
+        save_file.write("r_11,r_12,r_13,p_x,r_21,r_22,r_23,p_y,r_31,r_32,r_33,p_z")
+        for k in range(N):
+            pose = solution.atPose3(X(k))
+            pose: gtsam.Pose3
+            save_file.write("\n")
+            for value in np.ravel(pose.matrix())[:11]:
+                save_file.write(str(value))
+                save_file.write(",")
+            save_file.write(str(np.ravel(pose.matrix())[11]))
 
 
 if __name__ == "__main__":
