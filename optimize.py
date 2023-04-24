@@ -22,7 +22,8 @@ def optimize(args):
     file_joints = os.path.join(args.data_folder, "joints.csv")
 
     # TODO: Save joint covariance at top of file?
-    cov = 0.0001 * np.ones(arm.N)
+    covariance = 0.005
+    cov = covariance * np.ones(arm.N)
 
     joints = np.loadtxt(file_joints, skiprows=1)
     N = joints.shape[0]
@@ -36,7 +37,7 @@ def optimize(args):
 
     rng = np.random.default_rng(12345)
     rng: np.random.Generator
-    noisy_joints = joints + rng.normal(0.0, 0.01, joints.shape)
+    noisy_joints = joints + rng.normal(0.0, np.sqrt(covariance), joints.shape)
 
     # ------------------------- Run factor graph ------------------------- #
 
@@ -74,11 +75,13 @@ def optimize(args):
         intrinsics_matrix[0, -1],
         intrinsics_matrix[1, 1],
     )
-    camera_cov = np.diag([0.1, 0.1])
+    camera_cov = np.diag([0.01, 0.01])
     camera_noise = gtsam.noiseModel.Gaussian.Covariance(camera_cov)
     robust_noise = gtsam.noiseModel.Robust.Create(
         gtsam.noiseModel.mEstimator.Huber.Create(1.345), camera_noise
     )
+    num_landmarks = np.zeros(len(files_camera))
+    delta = 0.1
 
     # Iterate through images
     for i, camera_file in tqdm(enumerate(files_camera[1:], start=1)):
@@ -87,12 +90,6 @@ def optimize(args):
         matches = matcher.match(prev_descriptors, new_descriptors)
         matches = sorted(matches, key=lambda match: match.distance)
         new_keypoint_indices = [NOT_MATCHED for keypoint in new_keypoints]
-        poses = gtsam.Pose3Vector(
-            [
-                theta.atPose3(X(i - 1)),
-                theta.atPose3(X(i)),
-            ]
-        )
 
         # Run RANSAC
         prev_matched_keypoints = np.array(
@@ -106,8 +103,20 @@ def optimize(args):
             new_matched_keypoints,
             intrinsics_matrix,
             method=cv2.RANSAC,
-            threshold=1,
-            prob=0.999,
+            threshold=2,
+            prob=0.95,
+        )
+        num_landmarks[i], R, t, inliers2 = cv2.recoverPose(
+            E, prev_matched_keypoints, new_matched_keypoints, intrinsics_matrix
+        )
+        t *= delta
+        poses = gtsam.Pose3Vector(
+            [
+                theta.atPose3(X(i - 1)),
+                theta.atPose3(X(i - 1)).compose(
+                    gtsam.Pose3(gtsam.Rot3(R), t).inverse()
+                ),
+            ]
         )
         matches = [m for i, m in enumerate(matches) if inliers[i] == 1]
 
@@ -123,8 +132,8 @@ def optimize(args):
                         poses, calibration, measurements, rank_tol=1e-5, optimize=True
                     )
                 except Exception:
-                    print("Cheirality: point not added")
                     continue
+
                 prev_keypoint_indices[prev_index] = keypoint_count
                 keypoint_count += 1
 
@@ -154,8 +163,16 @@ def optimize(args):
 
         prev_image = new_image
 
-    optimizer = gtsam.LevenbergMarquardtOptimizer(graph, theta)
-    solution = optimizer.optimize()
+        optimizer = gtsam.LevenbergMarquardtOptimizer(graph, theta)
+        theta = optimizer.optimize()
+
+        delta = np.linalg.norm(
+            theta.atPose3(X(i)).translation() - theta.atPose3(X(i - 1)).translation()
+        )
+        print(delta)
+
+    solution = theta
+
     with open(os.path.join(args.data_folder, "odometry.csv"), "w") as save_file:
         save_file.write(
             "r_11,r_12,r_13,p_x,r_21,r_22,r_23,p_y,r_31,r_32,r_33,p_z,measured_joint0,measured_joint1,measured_joint2,measured_joint3,measured_joint4,measured_joint5,measured_joint6,true_joint0,true_joint1,true_joint2,true_joint3,true_joint4,true_joint5,true_joint6"
@@ -179,6 +196,8 @@ def optimize(args):
                 save_file.write(",")
 
             save_file.write(str(joints[k, -1]))
+
+    print(num_landmarks)
 
 
 if __name__ == "__main__":
