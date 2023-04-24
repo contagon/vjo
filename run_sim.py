@@ -172,11 +172,18 @@ def run_sim(args):
     os.mkdir(dirname)
 
     # Run simulation
-    joint0 = np.linspace(np.pi / 2.0, 0, N)
+    # joint0 = np.linspace(np.pi / 2.0, 0, N)
     joints = []
+    # for i in tqdm(range(N)):
+    #     qd[0] = joint0[i]
+    #     t, image, plant_state = sim.step(qd=qd)
+    #     joints.append(np.insert(plant_state[:7], 0, [i, t]))
+    #     cv2.imwrite(str(os.path.join(dirname, f"image{i:03d}.png")), image)
+
     for i in tqdm(range(N)):
-        qd[0] = joint0[i]
-        t, image, plant_state = sim.step(qd=qd)
+        t, image, plant_state = sim.step(
+            pd=RigidTransform(RollPitchYaw(0, 0, 0), np.array([0.0, 0.0, 0.75]))
+        )
         joints.append(np.insert(plant_state[:7], 0, [i, t]))
         cv2.imwrite(str(os.path.join(dirname, f"image{i:03d}.png")), image)
 

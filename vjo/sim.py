@@ -19,7 +19,12 @@ from pydrake.multibody.plant import AddMultibodyPlantSceneGraph
 from pydrake.systems.analysis import Simulator
 from pydrake.systems.controllers import InverseDynamicsController
 from pydrake.systems.framework import DiagramBuilder
+from pydrake.systems.all import Multiplexer, ConstantVectorSource
 from pydrake.systems.sensors import CameraInfo, RgbdSensor
+from pydrake.multibody.inverse_kinematics import (
+    DifferentialInverseKinematicsIntegrator,
+    DifferentialInverseKinematicsParameters,
+)
 
 from utils import AddMultibodyTriad
 
@@ -222,6 +227,28 @@ class ArmSim:
             kd (float, optional): Derivative gain. Defaults to 5.
             ki (float, optional): Integral gain. Defaults to 1.
         """
+        L7 = self.plant.GetFrameByName(self.link_names(7))
+
+        ik_parameters = DifferentialInverseKinematicsParameters(
+            self.plant.num_positions(), self.plant.num_velocities()
+        )
+
+        ik = DifferentialInverseKinematicsIntegrator(
+            self.plant, L7, self.plant.time_step(), ik_parameters
+        )
+
+        self.ik = self.builder.AddNamedSystem("inverse_kinematics", ik)
+
+        self.positions_to_state = self.builder.AddSystem(Multiplexer([self.N, self.N]))
+        self.builder.Connect(
+            self.ik.get_output_port(), self.positions_to_state.get_input_port(0)
+        )
+        zeros = self.builder.AddSystem(ConstantVectorSource([0] * self.N))
+
+        self.builder.Connect(
+            zeros.get_output_port(), self.positions_to_state.get_input_port(1)
+        )
+
         cont = InverseDynamicsController(
             self.plant,
             kp=np.full(self.N, kp),
@@ -230,6 +257,16 @@ class ArmSim:
             has_reference_acceleration=False,
         )
         self.controller = self.builder.AddNamedSystem("controller", cont)
+
+        self.builder.Connect(
+            self.positions_to_state.get_output_port(),
+            self.controller.get_input_port_desired_state(),
+        )
+
+        self.builder.Connect(
+            self.plant.get_state_output_port(),
+            self.ik.get_input_port(1),
+        )
 
         # Connect arm output to controller input
         self.builder.Connect(
@@ -242,8 +279,8 @@ class ArmSim:
             self.plant.get_actuation_input_port(),
         )
 
-        # Make input of entire system the controller input
-        self.builder.ExportInput(self.controller.get_input_port_desired_state())
+        # Make input of entire system the ik input
+        self.builder.ExportInput(self.ik.get_input_port(0))
         # Make the arm state an output from the diagram.
         self.builder.ExportOutput(self.plant.get_state_output_port())
 
@@ -301,22 +338,19 @@ class ArmSim:
         with open(file, "wb") as f:
             f.write(svg)
 
-    def step(self, qd: np.ndarray) -> Tuple[float, np.ndarray]:
+    def step(self, pd: RigidTransform) -> Tuple[float, np.ndarray]:
         """Make a single simulation step
 
         Args:
-            qd (np.ndarray): Desire joint angle at this step.
+            pd (RigidTransform): Desired end-effector pose at this step.
 
         Returns:
             Tuple[float, np.ndarray]: time, image
         """
         time = self.context.get_time()
 
-        # Append velocities of 0s
-        qd = np.append(qd, np.zeros(7))
-
         # Set the desired joint angle
-        self.diagram.get_input_port(0).FixValue(self.context, qd)
+        self.diagram.get_input_port(0).FixValue(self.context, pd)
 
         self.simulator.AdvanceTo(time + self.time_step)
 
