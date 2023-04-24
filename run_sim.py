@@ -181,8 +181,8 @@ def run_sim(args):
         cv2.imwrite(str(os.path.join(dirname, f"image{i:03d}.png")), image)
 
     # ------------------------- Save data ------------------------- #
-    header = "index,time,joint0,joint1,joint2,joint3,joint4,joint5,joint6,joint7"
-    np.savetxt(os.path.join(dirname, "joints.csv"), header=header)
+    header = "index,time,joint0,joint1,joint2,joint3,joint4,joint5,joint6"
+    np.savetxt(os.path.join(dirname, "joints.csv"), joints, header=header)
 
 
 if __name__ == "__main__":

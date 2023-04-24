@@ -54,9 +54,10 @@ def run(args):
     arm = iiwa7()
     result = np.loadtxt(
         os.path.join(args.data_folder, "odometry.csv"), skiprows=1, delimiter=","
-    )
+    )[:, :12]
     joints = np.loadtxt(
-        os.path.join(args.data_folder, "joints.csv"), skiprows=1, delimiter=","
+        os.path.join(args.data_folder, "joints.csv"),
+        skiprows=1,
     )[:, 2:]
 
     poses_opt = [gtsam.Pose3(d.reshape((3, 4))) for d in result]

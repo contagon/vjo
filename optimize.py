@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 from gtsam.symbol_shorthand import L, X
 from gtsam.utils import plot
+from tqdm import tqdm
 
 from vjo.fk import iiwa7
 
@@ -21,10 +22,9 @@ def optimize(args):
     file_joints = os.path.join(args.data_folder, "joints.csv")
 
     # TODO: Save joint covariance at top of file?
-    cov = np.ones(arm.N)
+    cov = 0.0001 * np.ones(arm.N)
 
-    data = pd.read_csv(file_joints)
-    joints = data.to_numpy()
+    joints = np.loadtxt(file_joints, skiprows=1)
     N = joints.shape[0]
 
     files_camera = [
@@ -34,6 +34,10 @@ def optimize(args):
     ]
     files_camera = sorted(files_camera)
 
+    rng = np.random.default_rng(12345)
+    rng: np.random.Generator
+    noisy_joints = joints + rng.normal(0.0, 0.01, joints.shape)
+
     # ------------------------- Run factor graph ------------------------- #
 
     graph = gtsam.NonlinearFactorGraph()
@@ -42,7 +46,7 @@ def optimize(args):
     # Add in joint priors
     for i in range(N):
         # Get SE3 estimate and propagated covariance
-        joint_configuration = joints[i, 2:9]
+        joint_configuration = noisy_joints[i, 2:9]
         fk_est = arm.fk(joint_configuration)
         fk_propagated_cov = arm.fk_prop_cov(joint_configuration, cov)
 
@@ -77,7 +81,7 @@ def optimize(args):
     )
 
     # Iterate through images
-    for i, camera_file in enumerate(files_camera[1:], start=1):
+    for i, camera_file in tqdm(enumerate(files_camera[1:], start=1)):
         new_image = cv2.imread(camera_file)
         new_keypoints, new_descriptors = orb.detectAndCompute(new_image, None)
         matches = matcher.match(prev_descriptors, new_descriptors)
@@ -106,21 +110,6 @@ def optimize(args):
             prob=0.999,
         )
         matches = [m for i, m in enumerate(matches) if inliers[i] == 1]
-        outImg = cv2.drawMatches(
-            prev_image,
-            prev_keypoints,
-            new_image,
-            new_keypoints,
-            matches,
-            None,
-        )
-        cv2.imshow("matches", outImg)
-        cv2.waitKey(1)
-
-        fig = plt.figure(0)
-        axes = fig.add_subplot(projection="3d")
-        plot.plot_pose3_on_axes(axes, poses[0])
-        plot.plot_pose3_on_axes(axes, poses[1])
 
         for match in matches:
             prev_index = match.queryIdx
@@ -147,7 +136,6 @@ def optimize(args):
                     calibration,
                 )
                 graph.push_back(prev_factor)
-                plot.plot_point3_on_axes(axes, triangulatedPoint3, "o")
                 theta.insert(L(prev_keypoint_indices[prev_index]), triangulatedPoint3)
 
             new_keypoint_indices[new_index] = prev_keypoint_indices[prev_index]
@@ -166,22 +154,31 @@ def optimize(args):
 
         prev_image = new_image
 
-        plot.set_axes_equal(0)
-        plt.show()
-
     optimizer = gtsam.LevenbergMarquardtOptimizer(graph, theta)
     solution = optimizer.optimize()
     with open(os.path.join(args.data_folder, "odometry.csv"), "w") as save_file:
-        save_file.write("r_11,r_12,r_13,p_x,r_21,r_22,r_23,p_y,r_31,r_32,r_33,p_z")
+        save_file.write(
+            "r_11,r_12,r_13,p_x,r_21,r_22,r_23,p_y,r_31,r_32,r_33,p_z,measured_joint0,measured_joint1,measured_joint2,measured_joint3,measured_joint4,measured_joint5,measured_joint6,true_joint0,true_joint1,true_joint2,true_joint3,true_joint4,true_joint5,true_joint6"
+        )
         for k in range(N):
             pose = solution.atPose3(X(k))
             pose: gtsam.Pose3
             flattened_pose = np.ravel(pose.matrix())[:12]
             save_file.write("\n")
-            for value in flattened_pose[:-1]:
+
+            for value in flattened_pose:
                 save_file.write(str(value))
                 save_file.write(",")
-            save_file.write(str(flattened_pose[11]))
+
+            for measured_joint in noisy_joints[k, 2:]:
+                save_file.write(str(measured_joint))
+                save_file.write(",")
+
+            for true_joint in joints[k, 2:-1]:
+                save_file.write(str(true_joint))
+                save_file.write(",")
+
+            save_file.write(str(joints[k, -1]))
 
 
 if __name__ == "__main__":
