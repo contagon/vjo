@@ -3,11 +3,8 @@ import os
 
 import cv2
 import gtsam
-import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 from gtsam.symbol_shorthand import L, X
-from gtsam.utils import plot
 from tqdm import tqdm
 
 from vjo.fk import iiwa7
@@ -73,7 +70,7 @@ def optimize(args):
         intrinsics_matrix[1, 1],
         intrinsics_matrix[0, 1],
         intrinsics_matrix[0, -1],
-        intrinsics_matrix[1, 1],
+        intrinsics_matrix[1, -1],
     )
     camera_cov = np.diag([0.01, 0.01])
     camera_noise = gtsam.noiseModel.Gaussian.Covariance(camera_cov)
@@ -116,6 +113,8 @@ def optimize(args):
                 theta.atPose3(X(i - 1)).compose(
                     gtsam.Pose3(gtsam.Rot3(R), t).inverse()
                 ),
+                # gtsam.Pose3(arm.fk(joints[i-1,2:9])),
+                # gtsam.Pose3(arm.fk(joints[i,2:9])),
             ]
         )
         matches = [m for i, m in enumerate(matches) if inliers[i] == 1]
