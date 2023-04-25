@@ -11,14 +11,13 @@ from vjo.utils import setup_plot  # noqa E402
 def plot_arm(theta, l, ax):  # noqa
     x = [0]
     y = [0]
-    print(theta)
     x.append(l * np.cos(theta[0]))
     y.append(l * np.sin(theta[0]))
 
     x.append(x[-1] + l * np.cos(theta[0] + theta[1]))
     y.append(y[-1] + l * np.sin(theta[0] + theta[1]))
 
-    ax.plot(x, y, marker="o", c="r")
+    ax.plot(x, y, marker="o", markersize=5)
 
 
 # ------------------------- Setup single 2link planar arm ------------------------- #
@@ -42,11 +41,11 @@ for i in range(2):
 arm = ArmFK(screws, zero)
 
 
-# ------------ Propagate particles through distribution ------------ #
+# ------------ Propagate particles through actual distribution ------------ #
 N = 10000
-var = [0.01, 0.01]
+std = np.array([0.15, 0.15])
 theta = np.array([np.pi / 4, np.pi / 4])
-thetas_noisy = np.random.normal(theta, np.sqrt(var), size=(N, 2))
+thetas_noisy = np.random.normal(theta, std, size=(N, 2))
 
 fk_true = arm.fk(theta)
 fk_noisy = [arm.fk(t) for t in thetas_noisy]
@@ -65,40 +64,23 @@ fk_noisy = [arm.fk(t) for t in thetas_noisy]
 # fk_noisy_prop = [fk_true@arm._exp(w1)@arm._exp(w2) for w1, w2 in zip(*noise)]
 
 # APPROXIMATION - Combine matrix exponential which drops some higher order terms
-# This approximation will matter less w/ smaller noises
-# cov = np.zeros((6,6))
-# for i in range(2):
-#     adj_inv = np.linalg.inv( arm._adjoint( arm.fk(theta[i+1:], idx_start=i+1) ) )
-#     xi = adj_inv@arm.screws[i]
-#     cov += np.outer(xi, xi)*var[i]
-
-cov = arm.fk_prop_cov(theta, var)
-
+cov = arm.fk_prop_cov(theta, std**2)
 noise = np.random.multivariate_normal(np.zeros(6), cov, size=N)
 fk_noisy_prop = [fk_true @ arm._exp(w) for w in noise]
 
 
 # ------------------------- Plot resulting trajectory ------------------------- #
-setup_plot()
+c = setup_plot()
 
-fig, ax = plt.subplots(1, 2, figsize=(7, 3))
+fig, ax = plt.subplots(1, 1, figsize=(4, 4), layout="constrained")
 
-ax[0].set_title("Actual Distribution")
-x = np.array([i[0, 3] for i in fk_noisy])
-y = np.array([i[1, 3] for i in fk_noisy])
-ax[0].scatter(x, y, s=0.5, alpha=0.5)
-plot_arm(theta, l, ax[0])
-
-ax[1].set_title("Approximated Distribution")
+ax.set_title("Gaussian of EE Pose")
 x = np.array([i[0, 3] for i in fk_noisy_prop])
 y = np.array([i[1, 3] for i in fk_noisy_prop])
-ax[1].scatter(x, y, s=0.5, alpha=0.5)
-plot_arm(theta, l, ax[1])
+ax.scatter(x, y, s=0.5, alpha=0.4, color=c[1])
+plot_arm(theta, l, ax)
 
-ax[0].set_aspect("equal")
-ax[1].set_aspect("equal")
+ax.set_aspect("equal")
 
-plt.setp(ax, xlim=ax[0].get_xlim(), ylim=ax[0].get_ylim())
-plt.tight_layout()
-plt.savefig("arm_cov_prop.png")
+plt.savefig("figures/arm_cov_prop.png")
 plt.show()
