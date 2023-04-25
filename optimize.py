@@ -102,7 +102,7 @@ def optimize(args):
             intrinsics_matrix,
             method=cv2.RANSAC,
             threshold=1,
-            prob=0.95,
+            prob=0.9999,
         )
         num_landmarks[i] = inliers.sum()
         # num_landmarks[i], R, t, inliers2 = cv2.recoverPose(
@@ -172,13 +172,10 @@ def optimize(args):
 
         prev_image = new_image
 
-        optimizer = gtsam.LevenbergMarquardtOptimizer(graph, theta)
-        theta = optimizer.optimize()
-
-        np.linalg.norm(
-            theta.atPose3(X(i)).translation() - theta.atPose3(X(i - 1)).translation()
-        )
-        print(theta.atPoint3(L(0)))
+    print(num_landmarks)
+    # optimizer = gtsam.DoglegOptimizer(graph, theta)
+    optimizer = gtsam.LevenbergMarquardtOptimizer(graph, theta)
+    theta = optimizer.optimize()
 
     solution = theta
 
@@ -205,8 +202,6 @@ def optimize(args):
                 save_file.write(",")
 
             save_file.write(str(joints[k, -1]))
-
-    print(num_landmarks)
 
     # Plot things
     fig, ax = plt.subplots(1, 1, subplot_kw=dict(projection="3d"))
