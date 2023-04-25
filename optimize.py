@@ -18,9 +18,8 @@ def optimize(args):
     # ------------------------- Load data ------------------------- #
     file_joints = os.path.join(args.data_folder, "joints.csv")
 
-    # TODO: Save joint covariance at top of file?
-    covariance = 0.01
-    cov = covariance * np.ones(arm.N)
+    std = 0.1
+    cov = std**2 * np.ones(arm.N)
 
     joints = np.loadtxt(file_joints, skiprows=1)[:, 2:9]
     N = joints.shape[0]
@@ -34,7 +33,7 @@ def optimize(args):
 
     rng = np.random.default_rng(1)
     rng: np.random.Generator
-    noisy_joints = joints + rng.normal(0.0, np.sqrt(covariance), joints.shape)
+    noisy_joints = joints + rng.normal(0.0, std, joints.shape)
 
     # ------------------------- Run factor graph ------------------------- #
 

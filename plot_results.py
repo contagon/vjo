@@ -33,7 +33,7 @@ def run(args):
 
     fig2, axs = plt.subplots(nrows=3, ncols=2, sharex=True, layout="constrained")
     axs = axs.T.flatten()
-    names = ["x (m)", "y (m)", "z (m)", "roll", "pitch", "yaw"]
+    names = ["X (m)", "Y (m)", "z (m)", "Roll (deg)", "Pitch (deg)", "Yaw (deg)"]
     for i in range(3):
         axs[i].plot(t, [p.translation()[i] for p in poses_opt], marker=".", label="GT")
         axs[i].plot(t, [p.translation()[i] for p in poses_gt], marker=".", label="VJO")
@@ -41,27 +41,31 @@ def run(args):
             t,
             [p.translation()[i] for p in poses_noisy],
             marker=".",
-            label="Measurements",
+            label="Encoders",
         )
         # axs[i].legend()
         axs[i].set_ylabel(names[i])
 
     for i in range(3):
         axs[i + 3].plot(
-            t, [p.rotation().rpy()[i] for p in poses_opt], marker=".", label="GT"
+            t, [p.rotation().rpy()[i]*180/np.pi for p in poses_opt], marker=".", label="GT"
         )
         axs[i + 3].plot(
-            t, [p.rotation().rpy()[i] for p in poses_gt], marker=".", label="VJO"
+            t, [p.rotation().rpy()[i]*180/np.pi for p in poses_gt], marker=".", label="VJO"
         )
         axs[i + 3].plot(
             t,
-            [p.rotation().rpy()[i] for p in poses_noisy],
+            [p.rotation().rpy()[i]*180/np.pi for p in poses_noisy],
             marker=".",
-            label="Measurements",
+            label="Encoders",
+            alpha=0.6
         )
         # axs[i+3].legend()
         axs[i + 3].set_ylabel(names[i + 3])
 
+    axs[3].legend()
+
+    plt.savefig('figures/joints.png')
     plt.show()
 
 

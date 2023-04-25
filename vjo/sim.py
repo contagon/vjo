@@ -21,32 +21,14 @@ from pydrake.systems.controllers import InverseDynamicsController
 from pydrake.systems.framework import DiagramBuilder
 from pydrake.systems.sensors import CameraInfo, RgbdSensor
 
-from utils import AddMultibodyTriad
+from vjo.utils import AddMultibodyTriad
 
 """
-TODO LIST
-
-Functionality:
-- Probably need to make more interesting trajectories
-
-Code Quality:
-- Test? That may be overkill for this
-
 Links that helped for ticking:
 https://github.com/RussTedrake/manipulation/blob/master/manipulation/drake_gym.py
 https://github.com/RussTedrake/manipulation/blob/master/manipulation/envs/box_flipup.py
 https://github.com/RobotLocomotion/drake/issues/15508
 """
-
-# class NoisyJointSensor(LeafSystem):
-#     def __init__(self, variance: float = 0.01):
-#         super.__init__()
-#         self.variance = variance
-
-#     def input_port_ticket(self, plant)
-
-#     def output_port(self, )
-
 
 class ArmSim:
     def __init__(
