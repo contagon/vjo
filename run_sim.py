@@ -65,45 +65,46 @@ def run_sim(args):
             RigidTransform(RollPitchYaw([0, 0, 0]), [-0.1, 0.9, 0]),
         )
 
+        delta = RigidTransform(RollPitchYaw(0, 0, 0), [0.3, 0.5, 0])
         sim.add_mesh(
             "meshes/011_banana/banana.sdf",
             "banana_link",
-            RigidTransform(RollPitchYaw([0, 0, 0]), [0.5, -0.5, 0]),
+            delta @ RigidTransform(RollPitchYaw([0, 0, 0]), [0.5, -0.5, 0]),
         )
         sim.add_mesh(
             "meshes/012_strawberry/strawberry.sdf",
             "strawberry_link",
-            RigidTransform(RollPitchYaw([0, 0, 0]), [0.55, -0.5, 0]),
+            delta @ RigidTransform(RollPitchYaw([0, 0, 0]), [0.55, -0.5, 0]),
         )
         sim.add_mesh(
             "meshes/013_apple/apple.sdf",
             "apple_link",
-            RigidTransform(RollPitchYaw([0, 0, 0]), [0.6, -0.55, 0]),
+            delta @ RigidTransform(RollPitchYaw([0, 0, 0]), [0.6, -0.55, 0]),
         )
         sim.add_mesh(
             "meshes/014_lemon/lemon.sdf",
             "lemon_link",
-            RigidTransform(RollPitchYaw([0, 0, 0]), [0.7, -0.5, 0]),
+            delta @ RigidTransform(RollPitchYaw([0, 0, 0]), [0.7, -0.5, 0]),
         )
         sim.add_mesh(
             "meshes/015_peach/peach.sdf",
             "peach_link",
-            RigidTransform(RollPitchYaw([0, 0, 0]), [0.7, -0.6, 0]),
+            delta @ RigidTransform(RollPitchYaw([0, 0, 0]), [0.7, -0.6, 0]),
         )
         sim.add_mesh(
             "meshes/016_pear/pear.sdf",
             "pear_link",
-            RigidTransform(RollPitchYaw([0, 0, 0.3]), [0.45, -0.7, 0]),
+            delta @ RigidTransform(RollPitchYaw([0, 0, 0.3]), [0.45, -0.7, 0]),
         )
         sim.add_mesh(
             "meshes/017_orange/orange.sdf",
             "orange_link",
-            RigidTransform(RollPitchYaw([0, 0, 0]), [0.5, -0.7, 0]),
+            delta @ RigidTransform(RollPitchYaw([0, 0, 0]), [0.5, -0.7, 0]),
         )
         sim.add_mesh(
             "meshes/018_plum/plum.sdf",
             "plum_link",
-            RigidTransform(RollPitchYaw([0, 0, 0]), [0.55, -0.3, 0]),
+            delta @ RigidTransform(RollPitchYaw([0, 0, 0]), [0.55, -0.3, 0]),
         )
 
         sim.add_mesh(
@@ -161,28 +162,52 @@ def run_sim(args):
     sim.add_frame(7)
 
     # Get sim ready
-    N = int(args.num_seconds // args.delta_t)
-    q0 = np.array([np.pi / 2 + 0.1, 0, 0, -np.pi / 2.0, 0, np.pi / 4, -np.pi / 2])
-    qd = np.array([0.0, 0, 0, -np.pi / 2.0, 0, np.pi / 4, -np.pi / 2])
+    q0 = np.array([np.pi / 2, 0, 0, -np.pi / 2.0, 0, np.pi / 4, -np.pi / 2])
+    sim.sim_setup(q0, wait_load=0)
 
-    sim.sim_setup(q0, wait_load=3)
+    N = int(args.num_seconds // args.delta_t)
+    N_fourth = int(N // 4)
+    N = 4 * N_fourth
+
+    # Define waypoints to move to
+    diff = 0.25
+    np.array(
+        [
+            [0, 0, 0, -np.pi / 2.0, 0, np.pi / 4, -np.pi / 2],
+            [np.pi / 2, 0, 0, -np.pi / 2.0, 0, np.pi / 4, -np.pi / 2],
+            [0, 0, 0, -np.pi / 2.0 + diff, 0, np.pi / 4 + diff * 2, -np.pi / 2],
+            [np.pi / 2, 0, 0, -np.pi / 2.0 + diff, 0, np.pi / 4 + diff * 2, -np.pi / 2],
+        ]
+    )
+
+    def get_q_des(i):
+        joint0 = np.linspace(np.pi / 2.0, 0, N)
+        qd_now = np.array([0.0, 0, 0, -np.pi / 2.0, 0, np.pi / 4, -np.pi / 2])
+        qd_now[0] = joint0[i]
+
+        # qd_now = qd[int(i//N_fourth)]
+
+        return qd_now
 
     # ------------------------- Run simulation ------------------------- #
     dirname = datetime.datetime.now().strftime("%Y.%m.%d_%H.%M.%S")
     os.mkdir(dirname)
 
     # Run simulation
-    joint0 = np.linspace(np.pi / 2.0, 0, N)
     joints = []
     for i in tqdm(range(N)):
-        qd[0] = joint0[i]
-        t, image, plant_state = sim.step(qd=qd)
+        qd_now = get_q_des(i)
+        t, image, plant_state = sim.step(qd=qd_now)
         joints.append(np.insert(plant_state[:7], 0, [i, t]))
         cv2.imwrite(str(os.path.join(dirname, f"image{i:03d}.png")), image)
 
     # ------------------------- Save data ------------------------- #
     header = "index,time,joint0,joint1,joint2,joint3,joint4,joint5,joint6"
     np.savetxt(os.path.join(dirname, "joints.csv"), joints, header=header)
+
+    if os.path.exists("latest"):
+        os.unlink("latest")
+    os.symlink(dirname, "latest")
 
 
 if __name__ == "__main__":

@@ -131,7 +131,7 @@ if __name__ == "__main__":
         "-i",
         "--data_folder",
         type=str,
-        default="data",
+        default="latest",
         help="The folder containing joint data and camera images",
     )
     args = parser.parse_args()
