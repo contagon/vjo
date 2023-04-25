@@ -5,6 +5,7 @@ import numpy as np
 
 sys.path.append("../vjo")
 from vjo.fk import ArmFK  # noqa E402
+from vjo.utils import setup_plot  # noqa E402
 
 
 def plot_arm(theta, l, ax):  # noqa
@@ -78,6 +79,8 @@ fk_noisy_prop = [fk_true @ arm._exp(w) for w in noise]
 
 
 # ------------------------- Plot resulting trajectory ------------------------- #
+setup_plot()
+
 fig, ax = plt.subplots(1, 2, figsize=(7, 3))
 
 ax[0].set_title("Actual Distribution")

@@ -22,7 +22,7 @@ def optimize(args):
     covariance = 0.01
     cov = covariance * np.ones(arm.N)
 
-    joints = np.loadtxt(file_joints, skiprows=1)
+    joints = np.loadtxt(file_joints, skiprows=1)[:, 2:9]
     N = joints.shape[0]
 
     files_camera = [
@@ -44,7 +44,7 @@ def optimize(args):
     # Add in joint priors
     for i in range(N):
         # Get SE3 estimate and propagated covariance
-        joint_configuration = noisy_joints[i, 2:9]
+        joint_configuration = noisy_joints[i]
         fk_est = arm.fk(joint_configuration)
         fk_propagated_cov = arm.fk_prop_cov(joint_configuration, cov)
 
@@ -107,8 +107,8 @@ def optimize(args):
             [
                 # theta.atPose3(X(i - 1)),
                 # theta.atPose3(X(i)),
-                gtsam.Pose3(arm.fk(joints[i - 1, 2:9])),
-                gtsam.Pose3(arm.fk(joints[i, 2:9])),
+                gtsam.Pose3(arm.fk(joints[i - 1])),
+                gtsam.Pose3(arm.fk(joints[i])),
             ]
         )
         matches = [m for i, m in enumerate(matches) if inliers[i] == 1]
@@ -167,33 +167,29 @@ def optimize(args):
     print(num_landmarks)
     print(keypoint_count)
     optimizer = gtsam.LevenbergMarquardtOptimizer(graph, theta)
-    theta = optimizer.optimize()
+    solution = optimizer.optimize()
 
-    solution = theta
+    # Save noisy joint values
+    header = (
+        "measured_joint0"
+        "measured_joint1"
+        "measured_joint2"
+        "measured_joint3"
+        "measured_joint4"
+        "measured_joint5"
+        "measured_joint6"
+    )
+    np.savetxt(
+        os.path.join(args.data_folder, "measurements.csv"), noisy_joints, header=header
+    )
 
-    with open(os.path.join(args.data_folder, "odometry.csv"), "w") as save_file:
-        save_file.write(
-            "r_11,r_12,r_13,p_x,r_21,r_22,r_23,p_y,r_31,r_32,r_33,p_z,measured_joint0,measured_joint1,measured_joint2,measured_joint3,measured_joint4,measured_joint5,measured_joint6,true_joint0,true_joint1,true_joint2,true_joint3,true_joint4,true_joint5,true_joint6"
-        )
-        for k in range(N):
-            pose = solution.atPose3(X(k))
-            pose: gtsam.Pose3
-            flattened_pose = np.ravel(pose.matrix())[:12]
-            save_file.write("\n")
-
-            for value in flattened_pose:
-                save_file.write(str(value))
-                save_file.write(",")
-
-            for measured_joint in noisy_joints[k, 2:]:
-                save_file.write(str(measured_joint))
-                save_file.write(",")
-
-            for true_joint in joints[k, 2:-1]:
-                save_file.write(str(true_joint))
-                save_file.write(",")
-
-            save_file.write(str(joints[k, -1]))
+    # Save solution
+    header = "q_w,q_x,q_y,q_z,p_x,p_y,p_z"
+    results = [solution.atPose3(X(i)) for i in range(N)]
+    results = np.array(
+        [np.append(i.rotation().quaternion(), i.translation()) for i in results]
+    )
+    np.savetxt(os.path.join(args.data_folder, "odometry.csv"), results, header=header)
 
 
 if __name__ == "__main__":

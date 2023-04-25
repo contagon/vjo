@@ -24,11 +24,6 @@ def run_sim(args):
             "table_link",
             RigidTransform(RollPitchYaw([0, 0, 0]), [0, 0, -0.05]),
         )
-        # sim.add_mesh(
-        #     "meshes/001_chips_can/chips_can.sdf",
-        #     "chips_can_link",
-        #     RigidTransform(RollPitchYaw([0, 0, 0]), [0, 1, 0]),
-        # )
         sim.add_mesh(
             "meshes/002_master_chef_can/master_chef_can.sdf",
             "master_chef_can_link",
@@ -222,7 +217,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--delta_t",
         type=float,
-        default=0.25,
+        default=0.1,
         help="Amount of time between timesteps",
     )
     parser.add_argument(
