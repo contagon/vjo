@@ -3,10 +3,8 @@ import os
 
 import cv2
 import gtsam
-import matplotlib.pyplot as plt
 import numpy as np
 from gtsam.symbol_shorthand import L, X
-from gtsam.utils import plot
 from tqdm import tqdm
 
 from vjo.fk import iiwa7
@@ -34,7 +32,7 @@ def optimize(args):
     ]
     files_camera = sorted(files_camera)
 
-    rng = np.random.default_rng(12345)
+    rng = np.random.default_rng(1)
     rng: np.random.Generator
     noisy_joints = joints + rng.normal(0.0, np.sqrt(covariance), joints.shape)
 
@@ -59,7 +57,7 @@ def optimize(args):
         graph.push_back(prior)
         theta.insert(X(i), gtsam.gtsam.Pose3(fk_est))
 
-    orb = cv2.ORB_create()
+    orb = cv2.ORB_create(nfeatures=1000)
     matcher = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
     prev_image = cv2.imread(files_camera[0])
     prev_keypoints, prev_descriptors = orb.detectAndCompute(prev_image, None)
@@ -105,16 +103,10 @@ def optimize(args):
             prob=0.9999,
         )
         num_landmarks[i] = inliers.sum()
-        # num_landmarks[i], R, t, inliers2 = cv2.recoverPose(
-        #     E, prev_matched_keypoints, new_matched_keypoints, intrinsics_matrix
-        # )
-        # t *= delta
         poses = gtsam.Pose3Vector(
             [
                 # theta.atPose3(X(i - 1)),
-                # theta.atPose3(X(i - 1)).compose(
-                #     gtsam.Pose3(gtsam.Rot3(R), t).inverse()
-                # ),
+                # theta.atPose3(X(i)),
                 gtsam.Pose3(arm.fk(joints[i - 1, 2:9])),
                 gtsam.Pose3(arm.fk(joints[i, 2:9])),
             ]
@@ -173,7 +165,7 @@ def optimize(args):
         prev_image = new_image
 
     print(num_landmarks)
-    # optimizer = gtsam.DoglegOptimizer(graph, theta)
+    print(keypoint_count)
     optimizer = gtsam.LevenbergMarquardtOptimizer(graph, theta)
     theta = optimizer.optimize()
 
@@ -202,18 +194,6 @@ def optimize(args):
                 save_file.write(",")
 
             save_file.write(str(joints[k, -1]))
-
-    # Plot things
-    fig, ax = plt.subplots(1, 1, subplot_kw=dict(projection="3d"))
-    for i in range(N):
-        plot.plot_pose3_on_axes(ax, solution.atPose3(X(i)), scale=0.9)
-        plot.plot_pose3_on_axes(ax, gtsam.Pose3(arm.fk(joints[i, 2:9])), scale=1.1)
-
-    for i in range(keypoint_count):
-        plot.plot_point3_on_axes(ax, solution.atPoint3(L(i)), ".")
-
-    plot.set_axes_equal(1)
-    plt.show()
 
 
 if __name__ == "__main__":

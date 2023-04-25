@@ -214,7 +214,7 @@ class ArmSim:
 
         return intrinsics.intrinsic_matrix()
 
-    def add_controller(self, kp: float = 10, kd: float = 5, ki: float = 1) -> None:
+    def add_controller(self, kp: float = 5, kd: float = 5, ki: float = 1) -> None:
         """Add a PID controller to control arm.
 
         Args:

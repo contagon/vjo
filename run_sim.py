@@ -172,7 +172,7 @@ def run_sim(args):
 
     # Define waypoints to move to
     diff = 0.25
-    np.array(
+    qd = np.array(
         [
             [0, 0, 0, -np.pi / 2.0, 0, np.pi / 4, -np.pi / 2],
             [np.pi / 2, 0, 0, -np.pi / 2.0, 0, np.pi / 4, -np.pi / 2],
@@ -182,11 +182,11 @@ def run_sim(args):
     )
 
     def get_q_des(i):
-        joint0 = np.linspace(np.pi / 2.0, 0, N)
-        qd_now = np.array([0.0, 0, 0, -np.pi / 2.0, 0, np.pi / 4, -np.pi / 2])
-        qd_now[0] = joint0[i]
+        # joint0 = np.linspace(np.pi / 2.0, 0, N)
+        # qd_now = np.array([0.0, 0, 0, -np.pi / 2.0, 0, np.pi / 4, -np.pi / 2])
+        # qd_now[0] = joint0[i]
 
-        # qd_now = qd[int(i//N_fourth)]
+        qd_now = qd[int(i // N_fourth)]
 
         return qd_now
 
