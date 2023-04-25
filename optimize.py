@@ -168,7 +168,7 @@ def optimize(args):
         delta = np.linalg.norm(
             theta.atPose3(X(i)).translation() - theta.atPose3(X(i - 1)).translation()
         )
-        print(delta)
+        print(theta.atPoint3(L(0)))
 
     solution = theta
 
