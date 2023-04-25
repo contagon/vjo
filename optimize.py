@@ -3,8 +3,10 @@ import os
 
 import cv2
 import gtsam
+import matplotlib.pyplot as plt
 import numpy as np
 from gtsam.symbol_shorthand import L, X
+from gtsam.utils import plot
 from tqdm import tqdm
 
 from vjo.fk import iiwa7
@@ -19,7 +21,7 @@ def optimize(args):
     file_joints = os.path.join(args.data_folder, "joints.csv")
 
     # TODO: Save joint covariance at top of file?
-    covariance = 0.005
+    covariance = 0.01
     cov = covariance * np.ones(arm.N)
 
     joints = np.loadtxt(file_joints, skiprows=1)
@@ -78,7 +80,6 @@ def optimize(args):
         gtsam.noiseModel.mEstimator.Huber.Create(1.345), camera_noise
     )
     num_landmarks = np.zeros(len(files_camera))
-    delta = 0.1
 
     # Iterate through images
     for i, camera_file in tqdm(enumerate(files_camera[1:], start=1)):
@@ -100,24 +101,31 @@ def optimize(args):
             new_matched_keypoints,
             intrinsics_matrix,
             method=cv2.RANSAC,
-            threshold=2,
+            threshold=1,
             prob=0.95,
         )
-        num_landmarks[i], R, t, inliers2 = cv2.recoverPose(
-            E, prev_matched_keypoints, new_matched_keypoints, intrinsics_matrix
-        )
-        t *= delta
+        num_landmarks[i] = inliers.sum()
+        # num_landmarks[i], R, t, inliers2 = cv2.recoverPose(
+        #     E, prev_matched_keypoints, new_matched_keypoints, intrinsics_matrix
+        # )
+        # t *= delta
         poses = gtsam.Pose3Vector(
             [
-                theta.atPose3(X(i - 1)),
-                theta.atPose3(X(i - 1)).compose(
-                    gtsam.Pose3(gtsam.Rot3(R), t).inverse()
-                ),
-                # gtsam.Pose3(arm.fk(joints[i-1,2:9])),
-                # gtsam.Pose3(arm.fk(joints[i,2:9])),
+                # theta.atPose3(X(i - 1)),
+                # theta.atPose3(X(i - 1)).compose(
+                #     gtsam.Pose3(gtsam.Rot3(R), t).inverse()
+                # ),
+                gtsam.Pose3(arm.fk(joints[i - 1, 2:9])),
+                gtsam.Pose3(arm.fk(joints[i, 2:9])),
             ]
         )
         matches = [m for i, m in enumerate(matches) if inliers[i] == 1]
+
+        # outimg = cv2.drawMatches(
+        #           prev_image, prev_keypoints, new_image, new_keypoints, matches, None
+        # )
+        # cv2.imshow('match', outimg)
+        # cv2.waitKey()
 
         for match in matches:
             prev_index = match.queryIdx
@@ -133,6 +141,8 @@ def optimize(args):
                 except Exception:
                     continue
 
+                if keypoint_count == 0:
+                    print(triangulatedPoint3)
                 prev_keypoint_indices[prev_index] = keypoint_count
                 keypoint_count += 1
 
@@ -165,7 +175,7 @@ def optimize(args):
         optimizer = gtsam.LevenbergMarquardtOptimizer(graph, theta)
         theta = optimizer.optimize()
 
-        delta = np.linalg.norm(
+        np.linalg.norm(
             theta.atPose3(X(i)).translation() - theta.atPose3(X(i - 1)).translation()
         )
         print(theta.atPoint3(L(0)))
@@ -197,6 +207,18 @@ def optimize(args):
             save_file.write(str(joints[k, -1]))
 
     print(num_landmarks)
+
+    # Plot things
+    fig, ax = plt.subplots(1, 1, subplot_kw=dict(projection="3d"))
+    for i in range(N):
+        plot.plot_pose3_on_axes(ax, solution.atPose3(X(i)), scale=0.9)
+        plot.plot_pose3_on_axes(ax, gtsam.Pose3(arm.fk(joints[i, 2:9])), scale=1.1)
+
+    for i in range(keypoint_count):
+        plot.plot_point3_on_axes(ax, solution.atPoint3(L(i)), ".")
+
+    plot.set_axes_equal(1)
+    plt.show()
 
 
 if __name__ == "__main__":

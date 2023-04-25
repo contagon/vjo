@@ -65,7 +65,7 @@ def run_sim(args):
             RigidTransform(RollPitchYaw([0, 0, 0]), [-0.1, 0.9, 0]),
         )
 
-        delta = RigidTransform(RollPitchYaw(0, 0, 0), [0.3, 0.5, 0])
+        delta = RigidTransform(RollPitchYaw(0, 0, 0), [0.4, 0.5, 0])
         sim.add_mesh(
             "meshes/011_banana/banana.sdf",
             "banana_link",
@@ -107,50 +107,51 @@ def run_sim(args):
             delta @ RigidTransform(RollPitchYaw([0, 0, 0]), [0.55, -0.3, 0]),
         )
 
+        delta = RigidTransform(RollPitchYaw(0, 0, 0), [0.2, 0.2, 0])
         sim.add_mesh(
             "meshes/024_bowl/bowl.sdf",
             "bowl_link",
-            RigidTransform(RollPitchYaw([0, 0, 0]), [0.5, 0.5, 0]),
+            delta @ RigidTransform(RollPitchYaw([0, 0, 0]), [0.5, 0.5, 0]),
         )
         sim.add_mesh(
             "meshes/025_mug/mug.sdf",
             "mug_link",
-            RigidTransform(RollPitchYaw([0, 0, 0]), [0.55, 0.55, 0]),
+            delta @ RigidTransform(RollPitchYaw([0, 0, 0]), [0.55, 0.55, 0]),
         )
         sim.add_mesh(
             "meshes/026_sponge/sponge.sdf",
             "sponge_link",
-            RigidTransform(RollPitchYaw([0, 0, 0]), [1, 0, 0]),
+            delta @ RigidTransform(RollPitchYaw([0, 0, 0]), [1, 0, 0]),
         )
         sim.add_mesh(
             "meshes/028_skillet_lid/skillet_lid.sdf",
             "skillet_lid_link",
-            RigidTransform(RollPitchYaw([0, 0, 0]), [0.5, 0.8, 0]),
+            delta @ RigidTransform(RollPitchYaw([0, 0, 0]), [0.5, 0.8, 0]),
         )
         sim.add_mesh(
             "meshes/029_plate/plate.sdf",
             "plate_link",
-            RigidTransform(RollPitchYaw([0, 0, 1.3]), [0.6, 0.3, 0]),
+            delta @ RigidTransform(RollPitchYaw([0, 0, 1.3]), [0.6, 0.3, 0]),
         )
         sim.add_mesh(
             "meshes/030_fork/fork.sdf",
             "fork_link",
-            RigidTransform(RollPitchYaw([0, 0.2, 0.57]), [0.65, 0.4, 0]),
+            delta @ RigidTransform(RollPitchYaw([0, 0.2, 0.57]), [0.65, 0.4, 0]),
         )
         sim.add_mesh(
             "meshes/031_spoon/spoon.sdf",
             "spoon_link",
-            RigidTransform(RollPitchYaw([0, 0, 0]), [0.65, 0.45, 0]),
+            delta @ RigidTransform(RollPitchYaw([0, 0, 0]), [0.65, 0.45, 0]),
         )
         sim.add_mesh(
             "meshes/032_knife/knife.sdf",
             "knife_link",
-            RigidTransform(RollPitchYaw([0, 0, -0.57]), [0.7, 0.5, 0]),
+            delta @ RigidTransform(RollPitchYaw([0, 0, -0.57]), [0.7, 0.5, 0]),
         )
         sim.add_mesh(
             "meshes/033_spatula/spatula.sdf",
             "spatula_link",
-            RigidTransform(RollPitchYaw([0, 0, -1.5]), [0.9, 0.5, 0]),
+            delta @ RigidTransform(RollPitchYaw([0, 0, -1.5]), [0.9, 0.5, 0]),
         )
 
     sim.plant_finalize()
@@ -171,7 +172,7 @@ def run_sim(args):
 
     # Define waypoints to move to
     diff = 0.25
-    qd = np.array(
+    np.array(
         [
             [0, 0, 0, -np.pi / 2.0, 0, np.pi / 4, -np.pi / 2],
             [np.pi / 2, 0, 0, -np.pi / 2.0, 0, np.pi / 4, -np.pi / 2],
@@ -181,11 +182,11 @@ def run_sim(args):
     )
 
     def get_q_des(i):
-        # joint0 = np.linspace(np.pi / 2.0, 0, N)
-        # qd_now = np.array([0.0, 0, 0, -np.pi / 2.0, 0, np.pi / 4, -np.pi / 2])
-        # qd_now[0] = joint0[i]
+        joint0 = np.linspace(np.pi / 2.0, 0, N)
+        qd_now = np.array([0.0, 0, 0, -np.pi / 2.0, 0, np.pi / 4, -np.pi / 2])
+        qd_now[0] = joint0[i]
 
-        qd_now = qd[int(i//N_fourth)]
+        # qd_now = qd[int(i//N_fourth)]
 
         return qd_now
 
