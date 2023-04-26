@@ -30,6 +30,7 @@ https://github.com/RussTedrake/manipulation/blob/master/manipulation/envs/box_fl
 https://github.com/RobotLocomotion/drake/issues/15508
 """
 
+
 class ArmSim:
     def __init__(
         self, viz: bool = True, time_step: float = 0.1, sim_time_step: float = 0.0001
@@ -182,7 +183,6 @@ class ArmSim:
             color_camera=color_camera,
             depth_camera=depth_camera,
         )
-        np.savetxt("intrinsics.txt", intrinsics.intrinsic_matrix())
 
         # Connect with outputs
         self.builder.AddSystem(self.camera)

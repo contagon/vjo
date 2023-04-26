@@ -153,13 +153,13 @@ def run_sim(args):
 
     # Add in sensors and controller
     sim.add_controller()
-    sim.add_camera(show=args.show_cam)
+    intrinsics = sim.add_camera(show=args.show_cam)
     # Visualizer end effector pose
     sim.add_frame(7)
 
     # Get sim ready
     q0 = np.array([np.pi / 2, 0, 0, -np.pi / 2.0, 0, np.pi / 4, -np.pi / 2])
-    sim.sim_setup(q0, wait_load=0)
+    sim.sim_setup(q0, wait_load=3)
 
     N = int(args.num_seconds // args.delta_t)
     N_fourth = int(N // 4)
@@ -199,7 +199,10 @@ def run_sim(args):
 
     # ------------------------- Save data ------------------------- #
     header = "index,time,joint0,joint1,joint2,joint3,joint4,joint5,joint6"
-    np.savetxt(os.path.join(dirname, "joints.csv"), joints, header=header)
+    np.savetxt(
+        os.path.join(dirname, "joints.csv"), joints, delimiter=",", header=header
+    )
+    np.savetxt(os.path.join(dirname, "intrinsics.csv"), intrinsics)
 
     if os.path.exists("latest"):
         os.unlink("latest")

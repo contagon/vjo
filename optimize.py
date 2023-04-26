@@ -15,14 +15,15 @@ def optimize(args):
     # Setup robot arm
     arm = iiwa7()
 
-    # ------------------------- Load data ------------------------- #
-    file_joints = os.path.join(args.data_folder, "joints.csv")
-
     std = 0.1
     cov = std**2 * np.ones(arm.N)
 
-    joints = np.loadtxt(file_joints, skiprows=1)[:, 2:9]
+    # ------------------------- Load data ------------------------- #
+    file_joints = os.path.join(args.data_folder, "joints.csv")
+    joints = np.loadtxt(file_joints, skiprows=1, delimiter=",")[:, 2:9]
     N = joints.shape[0]
+
+    intrinsics_matrix = np.loadtxt(os.path.join(args.data_folder, "intrinsics.csv"))
 
     files_camera = [
         os.path.join(args.data_folder, f)
@@ -56,14 +57,11 @@ def optimize(args):
         graph.push_back(prior)
         theta.insert(X(i), gtsam.gtsam.Pose3(fk_est))
 
+    # Setup feature matching
     orb = cv2.ORB_create(nfeatures=1000)
     matcher = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
-    prev_image = cv2.imread(files_camera[0])
-    prev_keypoints, prev_descriptors = orb.detectAndCompute(prev_image, None)
     NOT_MATCHED = -1
-    prev_keypoint_indices = [NOT_MATCHED for prev_keypoint in prev_keypoints]
     keypoint_count = 0
-    intrinsics_matrix = np.loadtxt("intrinsics.txt")
     calibration = gtsam.Cal3_S2(
         intrinsics_matrix[0, 0],
         intrinsics_matrix[1, 1],
@@ -76,10 +74,18 @@ def optimize(args):
     robust_noise = gtsam.noiseModel.Robust.Create(
         gtsam.noiseModel.mEstimator.Huber.Create(1.345), camera_noise
     )
+
+    # Match first image
+    prev_image = cv2.imread(files_camera[0])
+    prev_keypoints, prev_descriptors = orb.detectAndCompute(prev_image, None)
+    prev_keypoint_indices = [NOT_MATCHED for prev_keypoint in prev_keypoints]
     num_landmarks = np.zeros(len(files_camera))
 
     # Iterate through images
-    for i, camera_file in tqdm(enumerate(files_camera[1:], start=1)):
+    print("Matching images...")
+    for i, camera_file in tqdm(
+        enumerate(files_camera[1:], start=1), total=len(files_camera[1:])
+    ):
         new_image = cv2.imread(camera_file)
         new_keypoints, new_descriptors = orb.detectAndCompute(new_image, None)
         matches = matcher.match(prev_descriptors, new_descriptors)
@@ -121,6 +127,7 @@ def optimize(args):
         for match in matches:
             prev_index = match.queryIdx
             new_index = match.trainIdx
+            # If it hasn't been matched before
             if prev_keypoint_indices[prev_index] == NOT_MATCHED:
                 measurements = gtsam.Point2Vector(
                     [prev_keypoints[prev_index].pt, new_keypoints[new_index].pt]
@@ -132,8 +139,6 @@ def optimize(args):
                 except Exception:
                     continue
 
-                if keypoint_count == 0:
-                    print(triangulatedPoint3)
                 prev_keypoint_indices[prev_index] = keypoint_count
                 keypoint_count += 1
 
@@ -163,23 +168,31 @@ def optimize(args):
 
         prev_image = new_image
 
-    print(num_landmarks)
-    print(keypoint_count)
+    print(
+        (
+            f"Matched {keypoint_count} landmarks,"
+            f" {keypoint_count/len(files_camera[1:]):.2f} per frame"
+        )
+    )
+    print("Optimizing...")
     optimizer = gtsam.LevenbergMarquardtOptimizer(graph, theta)
     solution = optimizer.optimize()
 
     # Save noisy joint values
     header = (
-        "measured_joint0"
-        "measured_joint1"
-        "measured_joint2"
-        "measured_joint3"
-        "measured_joint4"
-        "measured_joint5"
+        "measured_joint0,"
+        "measured_joint1,"
+        "measured_joint2,"
+        "measured_joint3,"
+        "measured_joint4,"
+        "measured_joint5,"
         "measured_joint6"
     )
     np.savetxt(
-        os.path.join(args.data_folder, "measurements.csv"), noisy_joints, header=header
+        os.path.join(args.data_folder, "measurements.csv"),
+        noisy_joints,
+        header=header,
+        delimiter=",",
     )
 
     # Save solution
@@ -188,7 +201,14 @@ def optimize(args):
     results = np.array(
         [np.append(i.rotation().quaternion(), i.translation()) for i in results]
     )
-    np.savetxt(os.path.join(args.data_folder, "odometry.csv"), results, header=header)
+    np.savetxt(
+        os.path.join(args.data_folder, "odometry.csv"),
+        results,
+        header=header,
+        delimiter=",",
+    )
+
+    print("Done!")
 
 
 if __name__ == "__main__":

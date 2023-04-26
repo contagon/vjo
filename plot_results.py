@@ -13,13 +13,16 @@ def run(args):
     arm = iiwa7()
 
     # ------------------------- Load data ------------------------- #
-    result = np.loadtxt(os.path.join(args.data_folder, "odometry.csv"), skiprows=1)
+    result = np.loadtxt(
+        os.path.join(args.data_folder, "odometry.csv"), skiprows=1, delimiter=","
+    )
     noisy_joints = np.loadtxt(
-        os.path.join(args.data_folder, "measurements.csv"), skiprows=1
+        os.path.join(args.data_folder, "measurements.csv"), skiprows=1, delimiter=","
     )
     joints = np.loadtxt(
         os.path.join(args.data_folder, "joints.csv"),
         skiprows=1,
+        delimiter=",",
     )
     t = joints[:, 1]
 
@@ -48,24 +51,30 @@ def run(args):
 
     for i in range(3):
         axs[i + 3].plot(
-            t, [p.rotation().rpy()[i]*180/np.pi for p in poses_opt], marker=".", label="GT"
-        )
-        axs[i + 3].plot(
-            t, [p.rotation().rpy()[i]*180/np.pi for p in poses_gt], marker=".", label="VJO"
+            t,
+            [p.rotation().rpy()[i] * 180 / np.pi for p in poses_opt],
+            marker=".",
+            label="GT",
         )
         axs[i + 3].plot(
             t,
-            [p.rotation().rpy()[i]*180/np.pi for p in poses_noisy],
+            [p.rotation().rpy()[i] * 180 / np.pi for p in poses_gt],
+            marker=".",
+            label="VJO",
+        )
+        axs[i + 3].plot(
+            t,
+            [p.rotation().rpy()[i] * 180 / np.pi for p in poses_noisy],
             marker=".",
             label="Encoders",
-            alpha=0.6
+            alpha=0.6,
         )
         # axs[i+3].legend()
         axs[i + 3].set_ylabel(names[i + 3])
 
     axs[3].legend()
 
-    plt.savefig('figures/joints.png')
+    plt.savefig("figures/joints.png")
     plt.show()
 
 
