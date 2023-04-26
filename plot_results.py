@@ -38,8 +38,8 @@ def run(args):
     axs = axs.T.flatten()
     names = ["X (m)", "Y (m)", "z (m)", "Roll (deg)", "Pitch (deg)", "Yaw (deg)"]
     for i in range(3):
-        axs[i].plot(t, [p.translation()[i] for p in poses_opt], marker=".", label="GT")
-        axs[i].plot(t, [p.translation()[i] for p in poses_gt], marker=".", label="VJO")
+        axs[i].plot(t, [p.translation()[i] for p in poses_gt], marker=".", label="GT")
+        axs[i].plot(t, [p.translation()[i] for p in poses_opt], marker=".", label="VJO")
         axs[i].plot(
             t,
             [p.translation()[i] for p in poses_noisy],
@@ -52,13 +52,13 @@ def run(args):
     for i in range(3):
         axs[i + 3].plot(
             t,
-            [p.rotation().rpy()[i] * 180 / np.pi for p in poses_opt],
+            [p.rotation().rpy()[i] * 180 / np.pi for p in poses_gt],
             marker=".",
             label="GT",
         )
         axs[i + 3].plot(
             t,
-            [p.rotation().rpy()[i] * 180 / np.pi for p in poses_gt],
+            [p.rotation().rpy()[i] * 180 / np.pi for p in poses_opt],
             marker=".",
             label="VJO",
         )
